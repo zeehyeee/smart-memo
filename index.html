@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartMemo — 프로토타입</title>
+<link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F6F3;
+    --surface: #FFFFFF;
+    --surface2: #F2F0EC;
+    --border: #E4E1DA;
+    --border2: #D0CCBF;
+    --text1: #1A1916;
+    --text2: #6B6860;
+    --text3: #A8A49A;
+    --purple: #7B2FBE;
+    --purple-light: #F0E6FA;
+    --purple-mid: #C084FC;
+    --blue: #1D5FAA;
+    --blue-light: #E3EEFA;
+    --green: #1E6E3A;
+    --green-light: #E2F2E8;
+    --amber: #92510D;
+    --amber-light: #FEF3C7;
+    --red: #A32D2D;
+    --red-light: #FFEBEB;
+    --radius: 10px;
+    --radius-lg: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif;
+    background: var(--bg);
+    color: var(--text1);
+    font-size: 14px;
+    line-height: 1.6;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── 레이아웃 ── */
+  .app { display: flex; height: 100vh; }
+
+  /* ── 사이드바 ── */
+  .sidebar {
+    width: 200px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .logo {
+    padding: 18px 16px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text1);
+  }
+  .logo em { color: var(--purple); font-style: normal; }
+  .nav { padding: 10px 0; flex: 1; }
+  .nav-section {
+    padding: 14px 16px 4px;
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 16px;
+    font-size: 13px;
+    color: var(--text2);
+    cursor: pointer;
+    border-radius: 0;
+    transition: background 0.1s;
+  }
+  .nav-item:hover { background: var(--surface2); color: var(--text1); }
+  .nav-item.active {
+    color: var(--purple);
+    background: var(--purple-light);
+    font-weight: 500;
+  }
+  .nav-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--border2);
+    flex-shrink: 0;
+  }
+  .nav-item.active .nav-dot { background: var(--purple); }
+  .nav-item .badge {
+    margin-left: auto;
+    background: var(--red-light);
+    color: var(--red);
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 500;
+  }
+  .cat-parent { font-weight: 500; }
+  .cat-arrow {
+    font-size: 10px;
+    color: var(--text3);
+    width: 10px;
+    flex-shrink: 0;
+    transition: transform 0.15s;
+    cursor: pointer;
+  }
+  .cat-arrow.small { font-size: 9px; }
+  .cat-count {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--text3);
+    background: var(--surface2);
+    padding: 0 5px;
+    border-radius: 6px;
+    line-height: 16px;
+  }
+  .cat-children {
+    overflow: hidden;
+    max-height: 200px;
+    transition: max-height 0.2s ease;
+  }
+  .cat-children.collapsed { max-height: 0; }
+  .cat-sub {
+    padding-left: 26px;
+    font-size: 12px;
+  }
+  .cat-leaf {
+    padding-left: 36px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .cat-leaf.active { color: var(--blue); background: var(--blue-light); font-weight: 500; }
+  .leaf-line {
+    width: 8px;
+    height: 1px;
+    background: var(--border2);
+    flex-shrink: 0;
+    margin-right: 2px;
+  }
+
+  /* ── 메인 영역 ── */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  .banner {
+    padding: 7px 18px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .banner.sync {
+    background: #FFFDF0;
+    border-bottom: 1px solid #F0D88A;
+    color: var(--amber);
+  }
+  .banner.offline {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+    display: none;
+  }
+  .blink {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #F59E0B;
+    animation: blink 1.4s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+  .topbar {
+    height: 50px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 10px;
+  }
+  .search-wrap { flex: 1; position: relative; }
+  .search-wrap input {
+    width: 100%;
+    height: 32px;
+    padding: 0 12px 0 30px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--surface2);
+    font-size: 13px;
+    color: var(--text1);
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.15s;
+  }
+  .search-wrap input:focus { border-color: var(--purple-mid); background: var(--surface); }
+  .search-icon {
+    position: absolute;
+    left: 9px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text3);
+    font-size: 14px;
+    pointer-events: none;
+  }
+  .topbar-btn {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 12px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text2);
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: background 0.1s;
+  }
+  .topbar-btn:hover { background: var(--surface2); }
+  .topbar-btn.active { background: var(--purple-light); border-color: var(--purple-mid); color: var(--purple); font-weight: 500; }
+  .new-btn {
+    height: 32px;
+    padding: 0 14px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--purple);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.1s;
+  }
+  .new-btn:hover { opacity: 0.88; }
+
+  .filter-bar {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 7px 16px;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .filter-label { font-size: 11px; color: var(--text3); margin-right: 2px; }
+  .chip {
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    color: var(--text2);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.1s;
+    font-family: inherit;
+  }
+  .chip:hover { border-color: var(--purple-mid); color: var(--text1); }
+  .chip.active { background: var(--purple-light); border-color: var(--purple-mid); color: var(--purple); }
+  .chip-x { opacity: 0.55; font-size: 10px; }
+
+  /* ── 컨텐츠 영역 ── */
+  .content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    gap: 0;
+  }
+
+  /* 메모 목록 */
+  .memo-list-col {
+    width: 340px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .list-header {
+    padding: 12px 16px 8px;
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 500;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .memo-scroll { flex: 1; overflow-y: auto; padding: 8px; }
+  .memo-scroll::-webkit-scrollbar { width: 4px; }
+  .memo-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .memo-card {
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    border: 1px solid transparent;
+    margin-bottom: 4px;
+    transition: all 0.1s;
+  }
+  .memo-card:hover { background: var(--surface2); border-color: var(--border); }
+  .memo-card.active { background: var(--purple-light); border-color: var(--purple-mid); }
+  .memo-card.conflict { border-left: 2.5px solid #E24B4A; }
+  .card-row1 {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text1);
+    line-height: 1.4;
+  }
+  .card-time { font-size: 10px; color: var(--text3); white-space: nowrap; flex-shrink: 0; }
+  .card-preview {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.5;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-preview mark { background: #FEF9C3; color: inherit; border-radius: 2px; padding: 0 1px; }
+  .card-footer { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .pill {
+    height: 18px;
+    padding: 0 7px;
+    border-radius: 9px;
+    font-size: 10px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+  }
+  .pill-work { background: var(--blue-light); color: var(--blue); }
+  .pill-idea { background: var(--purple-light); color: var(--purple); }
+  .pill-personal { background: var(--green-light); color: var(--green); }
+  .pill-tag { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); font-weight: 400; }
+  .pill-ai { background: var(--amber-light); color: var(--amber); margin-left: auto; }
+  .pill-conflict { background: var(--red-light); color: var(--red); }
+
+  /* 상세 패널 */
+  .detail-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .detail-scroll { flex: 1; overflow-y: auto; padding: 20px; }
+  .detail-scroll::-webkit-scrollbar { width: 4px; }
+  .detail-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .detail-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 22px;
+    margin-bottom: 12px;
+  }
+  .detail-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text1);
+    letter-spacing: -0.3px;
+    margin-bottom: 4px;
+  }
+  .detail-meta { font-size: 11px; color: var(--text3); margin-bottom: 16px; }
+  .detail-body {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.75;
+  }
+  .detail-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+  .detail-actions { display: flex; gap: 8px; }
+  .det-btn {
+    flex: 1;
+    height: 34px;
+    font-size: 12px;
+    font-weight: 500;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text2);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.1s;
+  }
+  .det-btn:hover { background: var(--surface2); color: var(--text1); }
+  .det-btn.primary { background: var(--purple); color: #fff; border-color: var(--purple); }
+  .det-btn.primary:hover { opacity: 0.88; }
+
+  /* AI 분석 카드 */
+  .ai-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .ai-card-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .ai-icon {
+    width: 16px; height: 16px;
+    background: var(--purple-light);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+  }
+  .ai-summary {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.6;
+    margin-bottom: 10px;
+  }
+  .ai-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+  .conf-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text3);
+  }
+  .conf-bar { flex: 1; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .conf-fill { height: 100%; background: var(--purple); border-radius: 2px; }
+
+  /* 충돌 카드 */
+  .conflict-card {
+    background: var(--surface);
+    border: 1px solid #FFBDBD;
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .conflict-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--red);
+    margin-bottom: 10px;
+  }
+  .conflict-warning { font-size: 14px; }
+  .diff-row { display: flex; gap: 10px; margin-bottom: 10px; }
+  .diff-box {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .diff-box.mine { border-color: var(--purple-mid); background: var(--purple-light); }
+  .diff-label { font-size: 10px; color: var(--text3); margin-bottom: 4px; font-weight: 500; }
+  .diff-box.mine .diff-label { color: var(--purple); }
+  .diff-content { font-size: 12px; color: var(--text2); line-height: 1.5; }
+  .diff-box.mine .diff-content { color: var(--purple); }
+  .conflict-actions { display: flex; gap: 8px; }
+  .conf-btn {
+    flex: 1;
+    height: 32px;
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-family: inherit;
+    border: 1px solid var(--border2);
+    background: var(--surface);
+    color: var(--text2);
+    transition: all 0.1s;
+  }
+  .conf-btn:hover { background: var(--surface2); }
+  .conf-btn.red { background: var(--red-light); border-color: #FFBDBD; color: var(--red); }
+  .conf-btn.purple { background: var(--purple-light); border-color: var(--purple-mid); color: var(--purple); }
+
+  /* 계층형 카테고리 */
+  .cat-dot-blue { background: var(--blue) !important; }
+  .cat-dot-purple { background: var(--purple) !important; }
+  .cat-dot-green { background: var(--green) !important; }
+  .cat-parent { font-weight: 500; cursor: pointer; }
+  .cat-arrow {
+    font-size: 9px; color: var(--text3);
+    width: 10px; flex-shrink: 0; line-height: 1;
+  }
+  .cat-count {
+    margin-left: auto; font-size: 10px; color: var(--text3);
+    background: var(--surface2); padding: 0 5px;
+    border-radius: 6px; line-height: 16px;
+  }
+  .cat-children { overflow: hidden; max-height: 300px; transition: max-height 0.2s ease; }
+  .cat-children.collapsed { max-height: 0; }
+  .cat-sub { padding-left: 26px !important; font-size: 12px; cursor: pointer; }
+  .cat-leaf { padding-left: 38px !important; font-size: 12px; color: var(--text2); }
+  .cat-leaf.active { color: var(--blue); background: var(--blue-light); font-weight: 500; }
+  .leaf-line { width: 10px; height: 1px; background: var(--border2); flex-shrink: 0; margin-right: 2px; }
+</style>
+<script>
+function toggleCat(id) {
+  var el = document.getElementById('cat-' + id);
+  var arrow = document.getElementById('arrow-' + id);
+  if (!el) return;
+  var isCollapsed = el.classList.toggle('collapsed');
+  if (arrow) arrow.textContent = isCollapsed ? '\u25b8' : '\u25be';
+}
+</script>
+<body>
+<div class="app">
+
+  <!-- 사이드바 -->
+  <div class="sidebar">
+    <div class="logo">smart<em>memo</em></div>
+    <div class="nav">
+      <div class="nav-item active">
+        <div class="nav-dot"></div>전체 메모
+      </div>
+      <div class="nav-item">
+        <div class="nav-dot"></div>그룹 탐색
+      </div>
+      <div class="nav-item">
+        <div class="nav-dot"></div>검색
+      </div>
+      <div class="nav-section">카테고리</div>
+
+      <!-- 업무 (펼침) -->
+      <div class="nav-item cat-parent" onclick="toggleCat('work')">
+        <span class="cat-arrow" id="arrow-work">▾</span>
+        <div class="nav-dot cat-dot-blue"></div>업무
+        <span class="cat-count">12</span>
+      </div>
+      <div class="cat-children" id="cat-work">
+        <!-- 카피 (펼침) -->
+        <div class="nav-item cat-sub" onclick="toggleCat('copy')">
+          <span class="cat-arrow small" id="arrow-copy">▾</span>
+          <div class="nav-dot" style="background:#5B9BD5"></div>카피
+          <span class="cat-count">7</span>
+        </div>
+        <div class="cat-children" id="cat-copy">
+          <div class="nav-item cat-leaf active">
+            <span class="leaf-line"></span>
+            <div class="nav-dot" style="background:#5B9BD5;opacity:0.5"></div>디벨롭
+            <span class="cat-count">4</span>
+          </div>
+          <div class="nav-item cat-leaf">
+            <span class="leaf-line"></span>
+            <div class="nav-dot" style="background:#3B6D11;opacity:0.7"></div>완료
+            <span class="cat-count">3</span>
+          </div>
+        </div>
+        <!-- 전략 -->
+        <div class="nav-item cat-sub" onclick="toggleCat('strategy')">
+          <span class="cat-arrow small" id="arrow-strategy">▸</span>
+          <div class="nav-dot" style="background:#5B9BD5"></div>전략
+          <span class="cat-count">3</span>
+        </div>
+        <div class="cat-children collapsed" id="cat-strategy">
+          <div class="nav-item cat-leaf">
+            <span class="leaf-line"></span>
+            <div class="nav-dot" style="background:#5B9BD5;opacity:0.5"></div>진행중
+            <span class="cat-count">2</span>
+          </div>
+          <div class="nav-item cat-leaf">
+            <span class="leaf-line"></span>
+            <div class="nav-dot" style="background:#3B6D11;opacity:0.7"></div>완료
+            <span class="cat-count">1</span>
+          </div>
+        </div>
+        <!-- 분석 -->
+        <div class="nav-item cat-sub">
+          <span class="cat-arrow small" style="opacity:0">▸</span>
+          <div class="nav-dot" style="background:#5B9BD5"></div>분석
+          <span class="cat-count">2</span>
+        </div>
+      </div>
+
+      <!-- 아이디어 (접힘) -->
+      <div class="nav-item cat-parent" onclick="toggleCat('idea')">
+        <span class="cat-arrow" id="arrow-idea">▸</span>
+        <div class="nav-dot cat-dot-purple"></div>아이디어
+        <span class="cat-count">5</span>
+      </div>
+      <div class="cat-children collapsed" id="cat-idea">
+        <div class="nav-item cat-sub">
+          <span class="cat-arrow small" style="opacity:0">▸</span>
+          <div class="nav-dot" style="background:#9B59D5"></div>캠페인
+          <span class="cat-count">3</span>
+        </div>
+        <div class="nav-item cat-sub">
+          <span class="cat-arrow small" style="opacity:0">▸</span>
+          <div class="nav-dot" style="background:#9B59D5"></div>개선제안
+          <span class="cat-count">2</span>
+        </div>
+      </div>
+
+      <!-- 개인 (접힘) -->
+      <div class="nav-item cat-parent" onclick="toggleCat('personal')">
+        <span class="cat-arrow" id="arrow-personal">▸</span>
+        <div class="nav-dot cat-dot-green"></div>개인
+        <span class="cat-count">3</span>
+      </div>
+      <div class="cat-children collapsed" id="cat-personal">
+        <div class="nav-item cat-sub">
+          <span class="cat-arrow small" style="opacity:0">▸</span>
+          <div class="nav-dot" style="background:#3B6D11"></div>메모
+          <span class="cat-count">3</span>
+        </div>
+      </div>
+      <div class="nav-section">시스템</div>
+      <div class="nav-item">
+        <div class="nav-dot"></div>동기화 상태
+        <span class="badge">1</span>
+      </div>
+      <div class="nav-item">
+        <div class="nav-dot"></div>설정
+      </div>
+    </div>
+  </div>
+
+  <!-- 메인 -->
+  <div class="main">
+
+    <!-- 동기화 배너 -->
+    <div class="banner sync">
+      <div class="blink"></div>
+      3개 변경사항 동기화 중... · iPhone에서 작성한 메모 포함
+    </div>
+
+    <!-- 상단바 -->
+    <div class="topbar">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input type="text" value="마케팅 전략" placeholder="메모 검색 (내용, 제목, 태그)">
+      </div>
+      <button class="topbar-btn active">필터 ON</button>
+      <button class="topbar-btn">정렬: 관련성순 ▾</button>
+      <button class="new-btn">+ 새 메모</button>
+    </div>
+
+    <!-- 필터바 -->
+    <div class="filter-bar">
+      <span class="filter-label">필터:</span>
+      <button class="chip active">업무 <span class="chip-x">×</span></button>
+      <button class="chip active">2026년 4월 <span class="chip-x">×</span></button>
+      <button class="chip">아이디어</button>
+      <button class="chip">개인</button>
+      <button class="chip">#CRM</button>
+      <button class="chip">#마케팅</button>
+    </div>
+
+    <!-- 컨텐츠 -->
+    <div class="content">
+
+      <!-- 메모 목록 -->
+      <div class="memo-list-col">
+        <div class="list-header" id="list-header">메모 불러오는 중...</div>
+        <div class="memo-scroll" id="memo-scroll">
+          <div class="memo-empty" id="memo-loading">
+            <div class="memo-empty-icon">✦</div>
+            <div>메모를 불러오는 중이에요...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 상세 패널 -->
+      <div class="detail-col">
+        <div class="detail-scroll" id="detail-scroll">
+          <div class="detail-empty" id="detail-empty">
+            <div class="detail-empty-icon">📝</div>
+            <div>메모를 선택하면 내용이 표시돼요</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 새 메모 작성 모달 ===== -->
+<div class="modal-overlay" id="modal-new-memo" onclick="closeModal('modal-new-memo')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">새 메모</span>
+      <button class="modal-close" onclick="closeModal('modal-new-memo')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input class="memo-input-title" id="new-title" type="text" placeholder="제목 (선택)">
+      <div class="content-editor-wrap">
+        <textarea class="memo-input-content" id="new-content" placeholder="메모를 입력하세요...&#10;&#10;저장하면 AI가 자동으로 분류·정리해드려요."></textarea>
+        <div class="ai-organize-bar">
+          <button class="ai-organize-btn" id="btn-ai-organize" onclick="previewOrganize()">
+            <span class="ai-organize-icon">✦</span> AI 정리 미리보기
+          </button>
+          <span class="ai-organize-hint">저장 전에 어떻게 정리될지 확인해요</span>
+        </div>
+        <div class="ai-preview-box" id="ai-preview-box" style="display:none">
+          <div class="ai-preview-header">
+            <span class="ai-preview-label">✦ AI 정리 결과</span>
+            <button class="ai-preview-apply" onclick="applyOrganized()">이걸로 교체</button>
+            <button class="ai-preview-dismiss" onclick="dismissPreview()">닫기</button>
+          </div>
+          <div class="ai-preview-content" id="ai-preview-content"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">카테고리</label>
+        <div class="cat-select-wrap">
+          <select class="form-select" id="new-cat-level1" onchange="updateLevel2()">
+            <option value="">1단계 선택</option>
+            <option value="업무">업무</option>
+            <option value="아이디어">아이디어</option>
+            <option value="개인">개인</option>
+          </select>
+          <select class="form-select" id="new-cat-level2" disabled>
+            <option value="">2단계 선택</option>
+          </select>
+          <select class="form-select" id="new-cat-level3" disabled>
+            <option value="">3단계 선택</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">태그</label>
+        <div class="tag-input-wrap">
+          <div class="tag-list" id="new-tag-list"></div>
+          <input class="tag-input" id="new-tag-input" type="text" placeholder="태그 입력 후 Enter">
+        </div>
+      </div>
+      <div class="ai-hint">
+        <span class="ai-hint-icon">✦</span>
+        저장하면 AI가 메모를 깔끔하게 정리하고 (-, ㄴ, 1. 등 분류 포함), 카테고리·태그도 자동 제안해요.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn" onclick="closeModal('modal-new-memo')">취소</button>
+      <button class="modal-btn primary" onclick="saveMemo()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 카테고리 관리 모달 ===== -->
+<div class="modal-overlay" id="modal-cat" onclick="closeModal('modal-cat')">
+  <div class="modal modal-wide" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">카테고리 관리</span>
+      <button class="modal-close" onclick="closeModal('modal-cat')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="cat-mgr-layout">
+        <!-- 왼쪽: 트리 -->
+        <div class="cat-tree-panel">
+          <div class="cat-tree-header">
+            <span style="font-size:12px;color:var(--text2);font-weight:500;">카테고리 구조</span>
+            <button class="add-cat-btn" onclick="showAddForm('root')">+ 추가</button>
+          </div>
+          <div class="cat-tree" id="cat-tree">
+            <!-- 업무 -->
+            <div class="tree-node level1" onclick="selectCat(this,'업무','업무',1)">
+              <span class="tree-arrow" onclick="toggleTree(event,'tree-work')">▾</span>
+              <span class="tree-dot" style="background:var(--blue)"></span>
+              <span class="tree-label">업무</span>
+              <span class="tree-count">12</span>
+              <div class="tree-actions">
+                <button onclick="showAddForm('업무');event.stopPropagation()">+</button>
+                <button onclick="deleteCat('업무');event.stopPropagation()">×</button>
+              </div>
+            </div>
+            <div class="tree-children" id="tree-work">
+              <div class="tree-node level2" onclick="selectCat(this,'업무 > 카피','카피',2)">
+                <span class="tree-arrow" onclick="toggleTree(event,'tree-copy')">▾</span>
+                <span class="tree-dot" style="background:#5B9BD5"></span>
+                <span class="tree-label">카피</span>
+                <span class="tree-count">7</span>
+                <div class="tree-actions">
+                  <button onclick="showAddForm('카피');event.stopPropagation()">+</button>
+                  <button onclick="deleteCat('카피');event.stopPropagation()">×</button>
+                </div>
+              </div>
+              <div class="tree-children" id="tree-copy">
+                <div class="tree-node level3 selected" onclick="selectCat(this,'업무 > 카피 > 디벨롭','디벨롭',3)">
+                  <span class="tree-spacer"></span>
+                  <span class="tree-line"></span>
+                  <span class="tree-dot" style="background:#5B9BD5;opacity:0.5"></span>
+                  <span class="tree-label">디벨롭</span>
+                  <span class="tree-count">4</span>
+                  <div class="tree-actions">
+                    <button onclick="deleteCat('디벨롭');event.stopPropagation()">×</button>
+                  </div>
+                </div>
+                <div class="tree-node level3" onclick="selectCat(this,'업무 > 카피 > 완료','완료',3)">
+                  <span class="tree-spacer"></span>
+                  <span class="tree-line"></span>
+                  <span class="tree-dot" style="background:var(--green);opacity:0.7"></span>
+                  <span class="tree-label">완료</span>
+                  <span class="tree-count">3</span>
+                  <div class="tree-actions">
+                    <button onclick="deleteCat('완료');event.stopPropagation()">×</button>
+                  </div>
+                </div>
+              </div>
+              <div class="tree-node level2" onclick="selectCat(this,'업무 > 전략','전략',2)">
+                <span class="tree-arrow collapsed-arrow" onclick="toggleTree(event,'tree-strategy')">▸</span>
+                <span class="tree-dot" style="background:#5B9BD5"></span>
+                <span class="tree-label">전략</span>
+                <span class="tree-count">3</span>
+                <div class="tree-actions">
+                  <button onclick="showAddForm('전략');event.stopPropagation()">+</button>
+                  <button onclick="deleteCat('전략');event.stopPropagation()">×</button>
+                </div>
+              </div>
+              <div class="tree-children collapsed" id="tree-strategy">
+                <div class="tree-node level3" onclick="selectCat(this,'업무 > 전략 > 진행중','진행중',3)">
+                  <span class="tree-spacer"></span>
+                  <span class="tree-line"></span>
+                  <span class="tree-dot" style="background:#5B9BD5;opacity:0.5"></span>
+                  <span class="tree-label">진행중</span>
+                  <span class="tree-count">2</span>
+                  <div class="tree-actions">
+                    <button onclick="deleteCat('진행중');event.stopPropagation()">×</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- 아이디어 -->
+            <div class="tree-node level1" onclick="selectCat(this,'아이디어','아이디어',1)">
+              <span class="tree-arrow collapsed-arrow" onclick="toggleTree(event,'tree-idea')">▸</span>
+              <span class="tree-dot" style="background:var(--purple)"></span>
+              <span class="tree-label">아이디어</span>
+              <span class="tree-count">5</span>
+              <div class="tree-actions">
+                <button onclick="showAddForm('아이디어');event.stopPropagation()">+</button>
+                <button onclick="deleteCat('아이디어');event.stopPropagation()">×</button>
+              </div>
+            </div>
+            <div class="tree-children collapsed" id="tree-idea">
+              <div class="tree-node level2" onclick="selectCat(this,'아이디어 > 캠페인','캠페인',2)">
+                <span class="tree-arrow" style="opacity:0">▸</span>
+                <span class="tree-dot" style="background:#9B59D5"></span>
+                <span class="tree-label">캠페인</span>
+                <span class="tree-count">3</span>
+                <div class="tree-actions">
+                  <button onclick="showAddForm('캠페인');event.stopPropagation()">+</button>
+                  <button onclick="deleteCat('캠페인');event.stopPropagation()">×</button>
+                </div>
+              </div>
+            </div>
+            <!-- 개인 -->
+            <div class="tree-node level1" onclick="selectCat(this,'개인','개인',1)">
+              <span class="tree-arrow collapsed-arrow" onclick="toggleTree(event,'tree-personal')">▸</span>
+              <span class="tree-dot" style="background:var(--green)"></span>
+              <span class="tree-label">개인</span>
+              <span class="tree-count">3</span>
+              <div class="tree-actions">
+                <button onclick="showAddForm('개인');event.stopPropagation()">+</button>
+                <button onclick="deleteCat('개인');event.stopPropagation()">×</button>
+              </div>
+            </div>
+            <div class="tree-children collapsed" id="tree-personal"></div>
+          </div>
+        </div>
+
+        <!-- 오른쪽: 편집 패널 -->
+        <div class="cat-edit-panel" id="cat-edit-panel">
+          <div class="edit-empty" id="edit-empty">
+            <div style="font-size:28px;margin-bottom:8px;">📂</div>
+            <div style="font-size:13px;color:var(--text3);">카테고리를 선택하거나<br>새로 추가하세요</div>
+          </div>
+          <div class="edit-form" id="edit-form" style="display:none">
+            <div class="edit-breadcrumb" id="edit-breadcrumb"></div>
+            <div class="form-group">
+              <label class="form-label">카테고리 이름</label>
+              <input class="form-input" id="edit-name" type="text">
+            </div>
+            <div class="form-group">
+              <label class="form-label">색상</label>
+              <div class="color-picker" id="color-picker">
+                <div class="color-dot active" style="background:#1D5FAA" onclick="pickColor(this,'#1D5FAA')"></div>
+                <div class="color-dot" style="background:#7B2FBE" onclick="pickColor(this,'#7B2FBE')"></div>
+                <div class="color-dot" style="background:#1E6E3A" onclick="pickColor(this,'#1E6E3A')"></div>
+                <div class="color-dot" style="background:#92510D" onclick="pickColor(this,'#92510D')"></div>
+                <div class="color-dot" style="background:#A32D2D" onclick="pickColor(this,'#A32D2D')"></div>
+                <div class="color-dot" style="background:#6B6860" onclick="pickColor(this,'#6B6860')"></div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">메모 수</label>
+              <div style="font-size:13px;color:var(--text2);" id="edit-count">—</div>
+            </div>
+            <div class="edit-actions">
+              <button class="modal-btn" onclick="cancelEdit()">취소</button>
+              <button class="modal-btn primary" onclick="saveEdit()">저장</button>
+            </div>
+          </div>
+          <!-- 새 카테고리 추가 폼 -->
+          <div class="add-form" id="add-form" style="display:none">
+            <div class="edit-breadcrumb" id="add-breadcrumb"></div>
+            <div class="form-group">
+              <label class="form-label">새 카테고리 이름</label>
+              <input class="form-input" id="add-name" type="text" placeholder="이름 입력">
+            </div>
+            <div class="form-group">
+              <label class="form-label">색상</label>
+              <div class="color-picker" id="add-color-picker">
+                <div class="color-dot active" style="background:#1D5FAA" onclick="pickAddColor(this,'#1D5FAA')"></div>
+                <div class="color-dot" style="background:#7B2FBE" onclick="pickAddColor(this,'#7B2FBE')"></div>
+                <div class="color-dot" style="background:#1E6E3A" onclick="pickAddColor(this,'#1E6E3A')"></div>
+                <div class="color-dot" style="background:#92510D" onclick="pickAddColor(this,'#92510D')"></div>
+                <div class="color-dot" style="background:#A32D2D" onclick="pickAddColor(this,'#A32D2D')"></div>
+                <div class="color-dot" style="background:#6B6860" onclick="pickAddColor(this,'#6B6860')"></div>
+              </div>
+            </div>
+            <div class="add-actions">
+              <button class="modal-btn" onclick="cancelAdd()">취소</button>
+              <button class="modal-btn primary" onclick="confirmAdd()">추가</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 토스트 알림 -->
+<div class="toast" id="toast"></div>
+
+<style>
+/* ===== 모달 공통 ===== */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  width: 480px;
+  max-width: 95vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+}
+.modal-wide { width: 720px; }
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.modal-title { font-size: 14px; font-weight: 600; color: var(--text1); }
+.modal-close {
+  width: 24px; height: 24px;
+  border: none; background: none;
+  color: var(--text3); cursor: pointer;
+  font-size: 14px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-close:hover { background: var(--surface2); color: var(--text1); }
+.modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+.modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.modal-btn {
+  height: 34px; padding: 0 16px;
+  font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text2); cursor: pointer;
+  font-family: inherit;
+  transition: all 0.1s;
+}
+.modal-btn:hover { background: var(--surface2); }
+.modal-btn.primary { background: var(--purple); color: #fff; border-color: var(--purple); }
+.modal-btn.primary:hover { opacity: 0.88; }
+
+/* ===== 새 메모 폼 ===== */
+.memo-input-title {
+  width: 100%; height: 38px;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 0 12px;
+  font-size: 14px; font-weight: 500;
+  color: var(--text1);
+  background: var(--surface);
+  font-family: inherit;
+  margin-bottom: 10px;
+  outline: none;
+}
+.memo-input-title:focus { border-color: var(--purple-mid); }
+.memo-input-content {
+  width: 100%; height: 140px;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  font-size: 13px; line-height: 1.7;
+  color: var(--text1);
+  background: var(--surface);
+  font-family: inherit;
+  resize: none; outline: none;
+  margin-bottom: 14px;
+}
+.memo-input-content:focus { border-color: var(--purple-mid); }
+.form-row { margin-bottom: 12px; }
+.form-label { font-size: 11px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 6px; }
+.cat-select-wrap { display: flex; gap: 6px; }
+.form-select {
+  flex: 1; height: 32px;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 0 8px;
+  font-size: 12px; color: var(--text2);
+  background: var(--surface);
+  font-family: inherit; outline: none; cursor: pointer;
+}
+.form-select:focus { border-color: var(--purple-mid); }
+.form-select:disabled { opacity: 0.4; cursor: not-allowed; }
+.tag-input-wrap {
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  display: flex; flex-wrap: wrap; gap: 5px;
+  min-height: 36px; align-items: center;
+  cursor: text;
+}
+.tag-input-wrap:focus-within { border-color: var(--purple-mid); }
+.tag-input {
+  border: none; outline: none;
+  font-size: 12px; color: var(--text1);
+  background: transparent;
+  font-family: inherit;
+  min-width: 80px; flex: 1;
+}
+.tag-item {
+  height: 20px; padding: 0 8px;
+  background: var(--purple-light);
+  color: var(--purple);
+  border-radius: 10px; font-size: 11px;
+  display: flex; align-items: center; gap: 4px;
+}
+.tag-item button { border: none; background: none; color: var(--purple); cursor: pointer; font-size: 10px; padding: 0; opacity: 0.6; }
+.ai-hint {
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 11px; color: var(--text3);
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 4px;
+}
+.ai-hint-icon { color: var(--purple); font-size: 12px; }
+
+/* ===== AI 정리 버튼 & 미리보기 ===== */
+.content-editor-wrap { margin-bottom: 14px; }
+.content-editor-wrap .memo-input-content { margin-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; }
+.ai-organize-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-top: none;
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+}
+.ai-organize-btn {
+  height: 26px; padding: 0 10px;
+  font-size: 11px; font-weight: 500;
+  background: var(--purple-light);
+  color: var(--purple);
+  border: 1px solid var(--purple-mid);
+  border-radius: var(--radius);
+  cursor: pointer; font-family: inherit;
+  display: flex; align-items: center; gap: 4px;
+  transition: opacity 0.1s;
+  white-space: nowrap;
+}
+.ai-organize-btn:hover { opacity: 0.82; }
+.ai-organize-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ai-organize-icon { font-size: 10px; }
+.ai-organize-hint { font-size: 11px; color: var(--text3); }
+.ai-preview-box {
+  margin-top: 8px;
+  border: 1px solid var(--purple-mid);
+  border-radius: var(--radius);
+  background: var(--purple-light);
+  overflow: hidden;
+}
+.ai-preview-header {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 12px;
+  background: rgba(123,47,190,0.08);
+  border-bottom: 1px solid var(--purple-mid);
+}
+.ai-preview-label { font-size: 11px; font-weight: 500; color: var(--purple); flex: 1; }
+.ai-preview-apply {
+  height: 22px; padding: 0 10px;
+  font-size: 11px; font-weight: 500;
+  background: var(--purple); color: #fff;
+  border: none; border-radius: 6px;
+  cursor: pointer; font-family: inherit;
+}
+.ai-preview-apply:hover { opacity: 0.88; }
+.ai-preview-dismiss {
+  height: 22px; padding: 0 8px;
+  font-size: 11px; color: var(--text3);
+  background: none; border: none;
+  cursor: pointer; font-family: inherit;
+}
+.ai-preview-dismiss:hover { color: var(--text1); }
+.ai-preview-content {
+  padding: 10px 14px;
+  font-size: 12px; color: var(--purple);
+  line-height: 1.75;
+  white-space: pre-wrap;
+  max-height: 160px; overflow-y: auto;
+}
+
+/* ===== 빈 상태 / 로딩 ===== */
+.memo-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 8px; padding: 40px 20px;
+  font-size: 12px; color: var(--text3); text-align: center;
+}
+.memo-empty-icon { font-size: 22px; opacity: 0.4; }
+.detail-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; gap: 10px;
+  font-size: 13px; color: var(--text3); text-align: center;
+}
+.detail-empty-icon { font-size: 32px; opacity: 0.3; }
+
+/* ===== 정리된 메모 본문 렌더링 ===== */
+.organized-body {
+  font-size: 13px; color: var(--text2); line-height: 1.85;
+}
+.organized-body .ob-item { display: block; margin: 2px 0; }
+.organized-body .ob-main { color: var(--text1); font-weight: 500; }
+.organized-body .ob-sub { padding-left: 14px; color: var(--text2); }
+.organized-body .ob-sub::before { content: 'ㄴ '; color: var(--text3); }
+.organized-body .ob-numbered { padding-left: 4px; color: var(--text1); }
+.organized-body .ob-plain { color: var(--text2); }
+
+/* ===== 카테고리 관리 ===== */
+.cat-mgr-layout { display: flex; gap: 0; min-height: 380px; }
+.cat-tree-panel {
+  width: 260px; flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 0;
+}
+.cat-tree-header {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.add-cat-btn {
+  height: 24px; padding: 0 10px;
+  font-size: 11px; font-weight: 500;
+  border: 1px solid var(--purple-mid);
+  border-radius: var(--radius);
+  background: var(--purple-light);
+  color: var(--purple); cursor: pointer;
+  font-family: inherit;
+}
+.cat-tree { padding: 6px 0; overflow-y: auto; max-height: 340px; }
+.tree-node {
+  display: flex; align-items: center;
+  gap: 4px; padding: 6px 10px;
+  cursor: pointer; position: relative;
+  border-radius: 6px; margin: 1px 4px;
+}
+.tree-node:hover { background: var(--surface2); }
+.tree-node.selected { background: var(--purple-light); }
+.tree-node.level2 { padding-left: 22px; }
+.tree-node.level3 { padding-left: 34px; }
+.tree-arrow { font-size: 9px; color: var(--text3); width: 10px; flex-shrink: 0; }
+.tree-spacer { width: 10px; flex-shrink: 0; }
+.tree-line { width: 10px; height: 1px; background: var(--border2); flex-shrink: 0; }
+.tree-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.tree-label { font-size: 12px; color: var(--text1); flex: 1; }
+.tree-count { font-size: 10px; color: var(--text3); background: var(--surface2); padding: 0 5px; border-radius: 6px; }
+.tree-actions { display: none; gap: 2px; }
+.tree-node:hover .tree-actions { display: flex; }
+.tree-actions button {
+  width: 18px; height: 18px;
+  border: none; background: var(--surface2);
+  border-radius: 4px; font-size: 11px;
+  cursor: pointer; color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+}
+.tree-actions button:hover { background: var(--border2); }
+.tree-children { overflow: hidden; max-height: 300px; transition: max-height 0.15s; }
+.tree-children.collapsed { max-height: 0; }
+.cat-edit-panel { flex: 1; padding: 16px 18px; }
+.edit-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.edit-breadcrumb { font-size: 11px; color: var(--text3); margin-bottom: 14px; }
+.form-group { margin-bottom: 14px; }
+.form-input {
+  width: 100%; height: 34px;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 0 10px; font-size: 13px;
+  color: var(--text1); background: var(--surface);
+  font-family: inherit; outline: none;
+}
+.form-input:focus { border-color: var(--purple-mid); }
+.color-picker { display: flex; gap: 8px; flex-wrap: wrap; }
+.color-dot {
+  width: 24px; height: 24px;
+  border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.1s;
+}
+.color-dot:hover { transform: scale(1.15); }
+.color-dot.active { border-color: var(--text1); transform: scale(1.1); }
+.edit-actions, .add-actions { display: flex; gap: 8px; margin-top: 16px; }
+
+/* ===== 토스트 ===== */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--text1); color: #fff;
+  padding: 10px 18px; border-radius: 20px;
+  font-size: 13px; opacity: 0;
+  transition: all 0.2s; z-index: 200;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+
+<script>
+// ===== API 설정 =====
+var GEMINI_API_KEY = "AIzaSyAipc_UXGQx_Gd9vL4jBNHA6AkXewmFm5g";
+var SUPABASE_URL = "https://gaksbjhjujaeotgttzyh.supabase.co";
+var SUPABASE_KEY = "sb_publishable_hdGdA4ugDKwDHRhPG6krTg_GklsJUm7";
+
+// ===== 전역 상태 =====
+var allMemos = [];
+var currentMemoId = null;
+// 미리보기 캐시: { raw, organized } — 저장 시 재호출 방지
+var previewCache = null;
+
+// ===== 모달 (전역 — onclick 속성에서 호출) =====
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ===== 날짜 포맷 =====
+function formatDate(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  var now = new Date();
+  var diff = now - d;
+  if (diff < 60000) return '방금';
+  if (diff < 3600000) return Math.floor(diff/60000) + '분 전';
+  if (diff < 86400000) return '오늘 ' + d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+  if (diff < 172800000) return '어제';
+  return (d.getMonth()+1) + '월 ' + d.getDate() + '일';
+}
+function formatDateFull(iso) {
+  if (!iso) return '';
+  var d = new Date(iso);
+  return d.getFullYear() + '년 ' + (d.getMonth()+1) + '월 ' + d.getDate() + '일 '
+    + d.getHours() + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+// ===== 카테고리 pill 클래스 =====
+function catPillClass(cat) {
+  if (!cat) return 'pill-work';
+  if (cat.indexOf('아이디어') !== -1) return 'pill-idea';
+  if (cat.indexOf('개인') !== -1) return 'pill-personal';
+  return 'pill-work';
+}
+
+// ===== HTML 이스케이프 =====
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ===== 정리된 본문 → HTML 렌더링 =====
+function renderOrganized(text) {
+  if (!text) return '';
+  var lines = text.split('\n');
+  var html = '';
+  lines.forEach(function(line) {
+    var t = line.trim();
+    if (!t) {
+      html += '<span class="ob-item" style="display:block;height:5px"></span>';
+      return;
+    }
+    if (/^ㄴ\s/.test(t) || /^\s{2,}ㄴ/.test(line)) {
+      html += '<span class="ob-item ob-sub">' + escHtml(t.replace(/^ㄴ\s*/,'')) + '</span>';
+    } else if (/^-\s/.test(t)) {
+      html += '<span class="ob-item ob-main">— ' + escHtml(t.replace(/^-\s*/,'')) + '</span>';
+    } else if (/^\d+[.)]\s/.test(t)) {
+      html += '<span class="ob-item ob-numbered">' + escHtml(t) + '</span>';
+    } else {
+      html += '<span class="ob-item ob-plain">' + escHtml(t) + '</span>';
+    }
+  });
+  return '<div class="organized-body">' + html + '</div>';
+}
+
+// ===== Supabase: 메모 불러오기 =====
+function loadMemos() {
+  var header = document.getElementById('list-header');
+  var scroll = document.getElementById('memo-scroll');
+  header.textContent = '불러오는 중...';
+  scroll.innerHTML = '<div class="memo-empty"><div class="memo-empty-icon">✦</div><div>불러오는 중...</div></div>';
+
+  fetch(SUPABASE_URL + '/rest/v1/memos?order=created_at.desc&limit=50', {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+  }).then(function(res) {
+    if (!res.ok) throw new Error('불러오기 실패 ' + res.status);
+    return res.json();
+  }).then(function(data) {
+    allMemos = data || [];
+    renderMemoList(allMemos);
+  }).catch(function(err) {
+    header.textContent = '연결 실패';
+    scroll.innerHTML = '<div class="memo-empty"><div class="memo-empty-icon">⚠</div><div>' + escHtml(err.message) + '<br><small>Supabase 연결 확인 필요</small></div></div>';
+  });
+}
+
+// ===== 메모 목록 렌더링 =====
+function renderMemoList(memos) {
+  var header = document.getElementById('list-header');
+  var scroll = document.getElementById('memo-scroll');
+  header.textContent = '전체 메모 · ' + memos.length + '개';
+  if (!memos.length) {
+    scroll.innerHTML = '<div class="memo-empty"><div class="memo-empty-icon">📝</div><div>아직 메모가 없어요<br>새 메모를 작성해보세요</div></div>';
+    return;
+  }
+  var html = '';
+  memos.forEach(function(memo) {
+    var isActive = memo.id === currentMemoId;
+    var cat = memo.category || '미분류';
+    var pillClass = catPillClass(cat);
+    var src = memo.organized_content || memo.raw_content || '';
+    var preview = src.replace(/\n/g,' ').substring(0,80);
+    var tags = (memo.tags || []).slice(0,2).map(function(t){
+      return '<span class="pill pill-tag">#' + escHtml(t) + '</span>';
+    }).join('');
+    var conf = memo.ai_confidence ? '<span class="pill pill-ai">AI · ' + memo.ai_confidence + '%</span>' : '';
+    html += '<div class="memo-card' + (isActive ? ' active' : '') + '" onclick="selectMemo(\'' + memo.id + '\')">'
+      + '<div class="card-row1"><div class="card-title">' + escHtml(memo.title || '제목 없음') + '</div>'
+      + '<div class="card-time">' + formatDate(memo.created_at) + '</div></div>'
+      + '<div class="card-preview">' + escHtml(preview) + (src.length > 80 ? '…' : '') + '</div>'
+      + '<div class="card-footer"><span class="pill ' + pillClass + '">' + escHtml(cat) + '</span>' + tags + conf + '</div>'
+      + '</div>';
+  });
+  scroll.innerHTML = html;
+}
+
+// ===== 메모 선택 =====
+function selectMemo(id) {
+  currentMemoId = id;
+  renderMemoList(allMemos);
+  var memo = allMemos.find(function(m){ return m.id === id; });
+  if (memo) renderDetail(memo);
+}
+
+// ===== 상세 패널 렌더링 =====
+function renderDetail(memo) {
+  var scroll = document.getElementById('detail-scroll');
+  var cat = memo.category || '미분류';
+  var pillClass = catPillClass(cat);
+  var hasOrganized = !!(memo.organized_content && memo.organized_content.trim());
+
+  var bodyHtml = hasOrganized
+    ? renderOrganized(memo.organized_content)
+    : '<div class="organized-body"><span class="ob-item ob-plain">' + escHtml(memo.raw_content||'') + '</span></div>';
+
+  var rawToggle = hasOrganized
+    ? '<div class="raw-toggle" onclick="toggleRaw(this)">'
+      + '<span class="raw-toggle-icon">▸</span> 원문 보기'
+      + '<div class="raw-content" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius);font-size:12px;color:var(--text3);line-height:1.7;white-space:pre-wrap">'
+      + escHtml(memo.raw_content||'')
+      + '</div></div>'
+    : '';
+
+  var aiCard = '';
+  if (memo.ai_summary) {
+    var tags = (memo.ai_suggested_tags || memo.tags || []).map(function(t){
+      return '<span class="pill pill-tag">#' + escHtml(t) + '</span>';
+    }).join('');
+    var conf = memo.ai_confidence || 0;
+    var confLabel = conf >= 80 ? '높음' : conf >= 50 ? '보통' : '낮음';
+    aiCard = '<div class="ai-card">'
+      + '<div class="ai-card-header"><div class="ai-icon">✦</div> AI 분석 결과</div>'
+      + '<div class="ai-summary">' + escHtml(memo.ai_summary) + '</div>'
+      + '<div class="ai-tags"><span class="pill ' + pillClass + '">' + escHtml(cat) + '</span>' + tags + '</div>'
+      + '<div class="conf-row"><span>신뢰도 ' + conf + '%</span>'
+      + '<div class="conf-bar"><div class="conf-fill" style="width:' + conf + '%"></div></div>'
+      + '<span>' + confLabel + '</span></div></div>';
+  }
+
+  var badgeHtml = hasOrganized
+    ? '<div style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:var(--purple);background:var(--purple-light);padding:2px 8px;border-radius:8px;margin-bottom:12px">✦ AI 정리됨</div>'
+    : '';
+
+  scroll.innerHTML = '<div class="detail-card">'
+    + '<div class="detail-title">' + escHtml(memo.title||'제목 없음') + '</div>'
+    + '<div class="detail-meta">' + formatDateFull(memo.created_at) + ' · ' + escHtml(cat) + '</div>'
+    + badgeHtml
+    + '<div class="detail-body">' + bodyHtml + '</div>'
+    + rawToggle
+    + '<div class="detail-divider"></div>'
+    + '<div class="detail-actions"><button class="det-btn" onclick="deleteMemo(\'' + memo.id + '\')">삭제</button></div>'
+    + '</div>' + aiCard;
+}
+
+// ===== 원문 토글 =====
+function toggleRaw(el) {
+  var raw = el.querySelector('.raw-content');
+  var icon = el.querySelector('.raw-toggle-icon');
+  var hidden = raw.style.display === 'none';
+  raw.style.display = hidden ? 'block' : 'none';
+  icon.textContent = hidden ? '▾' : '▸';
+}
+
+// ===== 메모 삭제 =====
+function deleteMemo(id) {
+  if (!confirm('이 메모를 삭제할까요?')) return;
+  fetch(SUPABASE_URL + '/rest/v1/memos?id=eq.' + id, {
+    method: 'DELETE',
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+  }).then(function() {
+    allMemos = allMemos.filter(function(m){ return m.id !== id; });
+    currentMemoId = null;
+    document.getElementById('detail-scroll').innerHTML =
+      '<div class="detail-empty"><div class="detail-empty-icon">📝</div><div>메모가 삭제됐어요</div></div>';
+    renderMemoList(allMemos);
+    showToast('삭제됐어요');
+  }).catch(function(err){ showToast('삭제 실패: ' + err.message); });
+}
+
+// ===== 태그 =====
+var newTags = [];
+function initTagInput() {
+  document.getElementById('new-tag-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && this.value.trim()) {
+      e.preventDefault();
+      addTag(this.value.trim());
+      this.value = '';
+    }
+  });
+}
+function addTag(name) {
+  if (newTags.indexOf(name) !== -1) return;
+  newTags.push(name);
+  var list = document.getElementById('new-tag-list');
+  var item = document.createElement('div');
+  item.className = 'tag-item';
+  item.innerHTML = '#' + name + '<button onclick="removeTag(this,\'' + name + '\')">×</button>';
+  list.appendChild(item);
+}
+function removeTag(btn, name) {
+  newTags = newTags.filter(function(t){ return t !== name; });
+  btn.parentElement.remove();
+}
+
+// ===== 카테고리 셀렉트 =====
+var catData = {
+  '업무': { '카피': ['디벨롭','완료'], '전략': ['진행중','완료'], '분석': [] },
+  '아이디어': { '캠페인': [], '개선제안': [] },
+  '개인': { '메모': [] }
+};
+function updateLevel2() {
+  var l1 = document.getElementById('new-cat-level1').value;
+  var l2 = document.getElementById('new-cat-level2');
+  var l3 = document.getElementById('new-cat-level3');
+  l2.innerHTML = '<option value="">2단계 선택</option>';
+  l3.innerHTML = '<option value="">3단계 선택</option>';
+  l2.disabled = true; l3.disabled = true;
+  if (l1 && catData[l1]) {
+    Object.keys(catData[l1]).forEach(function(k){
+      l2.innerHTML += '<option value="' + k + '">' + k + '</option>';
+    });
+    l2.disabled = false;
+    l2.onchange = updateLevel3;
+  }
+}
+function updateLevel3() {
+  var l1 = document.getElementById('new-cat-level1').value;
+  var l2 = document.getElementById('new-cat-level2').value;
+  var l3 = document.getElementById('new-cat-level3');
+  l3.innerHTML = '<option value="">3단계 선택</option>';
+  l3.disabled = true;
+  if (l1 && l2 && catData[l1][l2] && catData[l1][l2].length) {
+    catData[l1][l2].forEach(function(v){ l3.innerHTML += '<option value="' + v + '">' + v + '</option>'; });
+    l3.disabled = false;
+  }
+}
+
+// ===== Gemini: 메모 정리 =====
+// ===== Gemini 공통 호출 (429 retry 포함) =====
+function callGemini(prompt, maxTokens, retryCount) {
+  retryCount = retryCount || 0;
+  return fetch(
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_API_KEY,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: maxTokens || 512 }
+      })
+    }
+  ).then(function(res) {
+    if (res.status === 429 && retryCount < 2) {
+      var wait = retryCount === 0 ? 8000 : 20000;
+      showToast('API 한도 초과 — ' + (wait/1000) + '초 후 재시도');
+      return new Promise(function(resolve) {
+        setTimeout(function() { resolve(callGemini(prompt, maxTokens, retryCount + 1)); }, wait);
+      });
+    }
+    if (!res.ok) throw new Error('GEMINI_' + res.status);
+    return res.json();
+  }).then(function(data) {
+    if (!data.candidates || !data.candidates[0]) throw new Error('응답 없음');
+    return data.candidates[0].content.parts[0].text.trim();
+  });
+}
+
+// ===== 미리보기용 프롬프트 (정리만, 500토큰) =====
+function buildOrganizePrompt(raw) {
+  return '메모 정리. 규칙: 주요항목 "- ", 하위항목 "  ㄴ ", 번호항목 "1. ". '
+    + '구어체→명사형 ("해야할것같음"→"검토필요"). 결과만 출력.\n\n원문:\n' + raw;
+}
+
+// ===== 저장용 통합 프롬프트 (정리+분석, 800토큰) =====
+function buildCombinedPrompt(raw, title) {
+  var cats = Object.keys(catData).join('/');
+  return '두 가지를 순서대로 출력하세요.\n'
+    + '[정리] 주요항목 "- ", 하위항목 "  ㄴ ", 번호항목 "1. ". 구어체→명사형. 결과만.\n'
+    + '[JSON] 다음 형식 그대로: {"c":"' + cats + ' 중 하나","t":["태그1","태그2"],"s":"요약","q":0.0~1.0}\n\n'
+    + (title ? '제목:' + title + '\n' : '')
+    + '원문:\n' + raw + '\n\n[정리]\n';
+}
+
+// ===== JSON 파싱 헬퍼 =====
+function parseAnalysis(text) {
+  try {
+    var m = text.match(/\{[^{}]*"[csqt]"[^{}]*\}/);
+    if (!m) return null;
+    var j = JSON.parse(m[0]);
+    // 키 정규화 (축약키 → 표준키)
+    return {
+      suggested_category: j.c || j.suggested_category || '미분류',
+      tags: j.t || j.tags || [],
+      summary: j.s || j.summary || '',
+      confidence: j.q || j.confidence || 0
+    };
+  } catch(e) { return null; }
+}
+
+// ===== AI 정리 미리보기 =====
+function previewOrganize() {
+  var raw = document.getElementById('new-content').value.trim();
+  if (!raw) { showToast('내용을 먼저 입력해주세요'); return; }
+  var btn = document.getElementById('btn-ai-organize');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="ai-organize-icon">✦</span> 정리 중...';
+
+  callGemini(buildOrganizePrompt(raw), 512)
+    .then(function(organized) {
+      // 캐시에 저장 — raw가 변경되지 않으면 저장 시 재호출 안 함
+      previewCache = { raw: raw, organized: organized };
+      document.getElementById('ai-preview-content').textContent = organized;
+      document.getElementById('ai-preview-box').style.display = 'block';
+    })
+    .catch(function(err) { showToast('AI 오류: ' + err.message); })
+    .then(function() {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="ai-organize-icon">✦</span> AI 정리 미리보기';
+    });
+}
+
+// ===== 정리본 교체 =====
+function applyOrganized() {
+  if (!previewCache) return;
+  document.getElementById('new-content').value = previewCache.organized;
+  document.getElementById('ai-preview-box').style.display = 'none';
+  showToast('정리된 내용으로 교체됐어요');
+}
+function dismissPreview() {
+  document.getElementById('ai-preview-box').style.display = 'none';
+}
+
+// ===== Gemini: 정리 + 분석 통합 (저장 시) =====
+function organizeAndAnalyze(rawContent, title) {
+  // ★ 미리보기 캐시 적중 → API 재호출 없이 분석만 추가 요청
+  if (previewCache && previewCache.raw === rawContent) {
+    var organized = previewCache.organized;
+    previewCache = null;
+    // 분석만 별도로 (160토큰으로 충분)
+    var cats = Object.keys(catData).join('/');
+    var ap = '{"c":"' + cats + ' 중 하나","t":["태그1","태그2"],"s":"요약","q":0.0~1.0}\n'
+      + '위 형식 JSON만. 메모: ' + organized.substring(0, 200);
+    return callGemini(ap, 160)
+      .then(function(text) {
+        var a = parseAnalysis(text) || { suggested_category:'미분류', tags:[], summary:'', confidence:0 };
+        return { organized: organized, analysis: a };
+      })
+      .catch(function() {
+        return { organized: organized, analysis: { suggested_category:'미분류', tags:[], summary:'', confidence:0 } };
+      });
+  }
+
+  // 캐시 없음 → 통합 1회 호출
+  return callGemini(buildCombinedPrompt(rawContent, title), 800)
+    .then(function(text) {
+      var jsonIdx = text.search(/\{[^{}]*"[csqt]"/);
+      var organized = jsonIdx !== -1 ? text.substring(0, jsonIdx).trim() : text.trim();
+      if (!organized) organized = rawContent;
+      var analysis = parseAnalysis(text) || { suggested_category:'미분류', tags:[], summary:'', confidence:0 };
+      previewCache = null;
+      return { organized: organized, analysis: analysis };
+    })
+    .catch(function(err) {
+      console.warn('organizeAndAnalyze 폴백:', err.message);
+      return { organized: rawContent, analysis: { suggested_category:'미분류', tags:[], summary:'', confidence:0 } };
+    });
+}
+
+// ===== Supabase 저장 =====
+function saveToSupabase(memo) {
+  return fetch(SUPABASE_URL + '/rest/v1/memos', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Prefer': 'return=representation'
+    },
+    body: JSON.stringify(memo)
+  }).then(function(res) {
+    if (!res.ok) return res.text().then(function(e){ throw new Error('저장 실패: ' + e); });
+    return res.json();
+  });
+}
+
+// ===== 메모 저장 메인 플로우 =====
+function saveMemo() {
+  var titleEl = document.getElementById('new-title');
+  var contentEl = document.getElementById('new-content');
+  var rawContent = contentEl.value.trim();
+  var title = titleEl.value.trim();
+  if (!rawContent) { showToast('내용을 입력해주세요'); return; }
+
+  var l1 = document.getElementById('new-cat-level1').value;
+  var l2 = document.getElementById('new-cat-level2').value;
+  var l3 = document.getElementById('new-cat-level3').value;
+  var userCategory = [l1,l2,l3].filter(Boolean).join(' > ') || null;
+  var userTags = newTags.slice();
+
+  closeModal('modal-new-memo');
+  showToast('✦ AI가 메모를 정리하는 중...');
+
+  titleEl.value = ''; contentEl.value = '';
+  document.getElementById('new-tag-list').innerHTML = '';
+  document.getElementById('ai-preview-box').style.display = 'none';
+  newTags = [];
+  document.getElementById('new-cat-level1').value = '';
+  document.getElementById('new-cat-level2').innerHTML = '<option value="">2단계 선택</option>';
+  document.getElementById('new-cat-level2').disabled = true;
+  document.getElementById('new-cat-level3').innerHTML = '<option value="">3단계 선택</option>';
+  document.getElementById('new-cat-level3').disabled = true;
+
+  organizeAndAnalyze(rawContent, title).then(function(result) {
+    var organized = result.organized;
+    var analysis = result.analysis;
+    var conf = analysis.confidence || 0;
+    var finalTitle = title || (analysis.summary||'').substring(0,30) || '제목 없음';
+    var hasOrganized = organized !== rawContent;
+    return saveToSupabase({
+      title: finalTitle,
+      raw_content: rawContent,
+      organized_content: hasOrganized ? organized : null,
+      category: userCategory || analysis.suggested_category || '미분류',
+      tags: userTags.length > 0 ? userTags : (analysis.tags||[]),
+      ai_summary: analysis.summary || '',
+      ai_confidence: Math.round(conf * 100),
+      ai_suggested_category: analysis.suggested_category || '',
+      ai_suggested_tags: analysis.tags || [],
+      user_set_category: !!userCategory,
+      user_set_tags: userTags.length > 0,
+      created_at: new Date().toISOString()
+    }).then(function() {
+      showToast(conf > 0 ? '저장 완료 ✦ ' + Math.round(conf*100) + '% 신뢰도' : '저장 완료');
+      loadMemos();
+    });
+  }).catch(function(err){ console.error(err); showToast('오류: ' + err.message); });
+}
+
+// ===== 토스트 =====
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2800);
+}
+
+// ===== 카테고리 관련 =====
+function toggleTree(e, id) {
+  e.stopPropagation();
+  var el = document.getElementById(id);
+  if (!el) return;
+  var collapsed = el.classList.toggle('collapsed');
+  e.target.textContent = collapsed ? '\u25b8' : '\u25be';
+}
+function selectCat(node, breadcrumb, name) {
+  document.querySelectorAll('.tree-node').forEach(function(n){ n.classList.remove('selected'); });
+  node.classList.add('selected');
+  document.getElementById('edit-empty').style.display = 'none';
+  document.getElementById('add-form').style.display = 'none';
+  document.getElementById('edit-form').style.display = 'block';
+  document.getElementById('edit-breadcrumb').textContent = breadcrumb;
+  document.getElementById('edit-name').value = name;
+  var counts = {'업무':12,'카피':7,'디벨롭':4,'완료':3,'전략':3,'아이디어':5,'개인':3,'캠페인':3};
+  document.getElementById('edit-count').textContent = (counts[name]||0) + '개';
+}
+function cancelEdit() {
+  document.getElementById('edit-form').style.display = 'none';
+  document.getElementById('edit-empty').style.display = 'flex';
+  document.querySelectorAll('.tree-node').forEach(function(n){ n.classList.remove('selected'); });
+}
+function saveEdit() {
+  if (!document.getElementById('edit-name').value.trim()) return;
+  showToast('저장됐어요');
+  cancelEdit();
+}
+function deleteCat(name) {
+  if (confirm('"'+name+'" 카테고리를 삭제할까요?\n포함된 메모는 미분류로 이동돼요.')) {
+    showToast('"'+name+'" 삭제됐어요'); cancelEdit();
+  }
+}
+var addParent = '';
+function showAddForm(parent) {
+  addParent = parent;
+  document.getElementById('edit-form').style.display = 'none';
+  document.getElementById('edit-empty').style.display = 'none';
+  document.getElementById('add-form').style.display = 'block';
+  document.getElementById('add-breadcrumb').textContent = parent === 'root' ? '최상위 카테고리 추가' : parent + ' > 새 하위 카테고리';
+  document.getElementById('add-name').value = '';
+  setTimeout(function(){ document.getElementById('add-name').focus(); }, 50);
+}
+function cancelAdd() {
+  document.getElementById('add-form').style.display = 'none';
+  document.getElementById('edit-empty').style.display = 'flex';
+}
+function confirmAdd() {
+  var name = document.getElementById('add-name').value.trim();
+  if (!name) { showToast('이름을 입력해주세요'); return; }
+  showToast('"'+name+'" 추가됐어요'); cancelAdd();
+}
+function pickColor(el) {
+  document.querySelectorAll('#color-picker .color-dot').forEach(function(d){ d.classList.remove('active'); });
+  el.classList.add('active');
+}
+function pickAddColor(el) {
+  document.querySelectorAll('#add-color-picker .color-dot').forEach(function(d){ d.classList.remove('active'); });
+  el.classList.add('active');
+}
+
+// ===== 초기화 =====
+document.addEventListener('DOMContentLoaded', function() {
+  initTagInput();
+  document.querySelector('.new-btn').onclick = function() {
+    openModal('modal-new-memo');
+    setTimeout(function(){ document.getElementById('new-content').focus(); }, 100);
+  };
+  document.querySelectorAll('.nav-section').forEach(function(s) {
+    if (s.textContent.trim() === '카테고리') {
+      s.style.cursor = 'pointer';
+      s.title = '카테고리 관리';
+      s.onclick = function(){ openModal('modal-cat'); };
+    }
+  });
+  loadMemos();
+});
+</script>
+
+</body>
+</html>
