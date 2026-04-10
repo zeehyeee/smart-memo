@@ -1268,7 +1268,7 @@ function toggleCat(id) {
 
 <script>
 // ===== API 설정 =====
-var GEMINI_API_KEY = "AIzaSyBdP7MM4XLsGDWwL-6XH6Z5l1A8agdC_tE";
+var GEMINI_API_KEY = "AIzaSyAipc_UXGQx_Gd9vL4jBNHA6AkXewmFm5g";
 var SUPABASE_URL = "https://gaksbjhjujaeotgttzyh.supabase.co";
 var SUPABASE_KEY = "sb_publishable_hdGdA4ugDKwDHRhPG6krTg_GklsJUm7";
 
@@ -1679,6 +1679,8 @@ function saveToSupabase(memo) {
 }
 
 // ===== 메모 저장 메인 플로우 =====
+// 전략: 먼저 raw로 Supabase에 즉시 저장 → 그 다음 백그라운드에서 AI 정리 후 업데이트
+// → 저장은 항상 성공, AI 오류/한도초과는 정리 없이 그냥 넘어감
 function saveMemo() {
   var titleEl = document.getElementById('new-title');
   var contentEl = document.getElementById('new-content');
@@ -1691,42 +1693,87 @@ function saveMemo() {
   var l3 = document.getElementById('new-cat-level3').value;
   var userCategory = [l1,l2,l3].filter(Boolean).join(' > ') || null;
   var userTags = newTags.slice();
+  // 미리보기 캐시 스냅샷 (모달 닫기 전에 캡처)
+  var cachedPreview = previewCache && previewCache.raw === rawContent ? previewCache : null;
 
   closeModal('modal-new-memo');
-  showToast('✦ AI가 메모를 정리하는 중...');
 
   titleEl.value = ''; contentEl.value = '';
   document.getElementById('new-tag-list').innerHTML = '';
   document.getElementById('ai-preview-box').style.display = 'none';
-  newTags = [];
+  newTags = []; previewCache = null;
   document.getElementById('new-cat-level1').value = '';
   document.getElementById('new-cat-level2').innerHTML = '<option value="">2단계 선택</option>';
   document.getElementById('new-cat-level2').disabled = true;
   document.getElementById('new-cat-level3').innerHTML = '<option value="">3단계 선택</option>';
   document.getElementById('new-cat-level3').disabled = true;
 
-  organizeAndAnalyze(rawContent, title).then(function(result) {
-    var organized = result.organized;
-    var analysis = result.analysis;
-    var conf = analysis.confidence || 0;
-    var finalTitle = title || (analysis.summary||'').substring(0,30) || '제목 없음';
-    var hasOrganized = organized !== rawContent;
-    return saveToSupabase({
-      title: finalTitle,
-      raw_content: rawContent,
-      organized_content: hasOrganized ? organized : null,
-      category: userCategory || analysis.suggested_category || '미분류',
-      tags: userTags.length > 0 ? userTags : (analysis.tags||[]),
-      ai_summary: analysis.summary || '',
-      ai_confidence: Math.round(conf * 100),
-      ai_suggested_category: analysis.suggested_category || '',
-      ai_suggested_tags: analysis.tags || [],
-      user_set_category: !!userCategory,
-      user_set_tags: userTags.length > 0,
-      created_at: new Date().toISOString()
-    }).then(function() {
-      showToast(conf > 0 ? '저장 완료 ✦ ' + Math.round(conf*100) + '% 신뢰도' : '저장 완료');
-      loadMemos();
+  // ① 즉시 raw로 저장 (AI 기다리지 않음)
+  var initialMemo = {
+    title: title || '제목 없음',
+    raw_content: rawContent,
+    organized_content: cachedPreview ? cachedPreview.organized : null,
+    category: userCategory || '미분류',
+    tags: userTags,
+    ai_summary: '',
+    ai_confidence: 0,
+    ai_suggested_category: '',
+    ai_suggested_tags: [],
+    user_set_category: !!userCategory,
+    user_set_tags: userTags.length > 0,
+    created_at: new Date().toISOString()
+  };
+
+  showToast('저장 중...');
+  saveToSupabase(initialMemo).then(function(saved) {
+    var savedId = saved && saved[0] && saved[0].id;
+    showToast('저장 완료 ✦ AI 정리 중...');
+    loadMemos();
+
+    // ② 백그라운드에서 AI 정리+분석 → 저장된 레코드 업데이트
+    // 캐시 있으면 분석만, 없으면 통합 호출
+    var aiPromise = cachedPreview
+      ? (function() {
+          var cats = Object.keys(catData).join('/');
+          var ap = '{"c":"' + cats + ' 중 하나","t":["태그1","태그2"],"s":"요약","q":0.0~1.0}\n위 형식 JSON만. 메모: ' + cachedPreview.organized.substring(0,200);
+          return callGemini(ap, 160).then(function(text) {
+            var a = parseAnalysis(text) || { suggested_category:'미분류', tags:[], summary:'', confidence:0 };
+            return { organized: cachedPreview.organized, analysis: a };
+          });
+        })()
+      : organizeAndAnalyze(rawContent, title);
+
+    aiPromise.then(function(result) {
+      var conf = result.analysis.confidence || 0;
+      var finalTitle = title || (result.analysis.summary||'').substring(0,30) || '제목 없음';
+      var patch = {
+        title: finalTitle,
+        organized_content: result.organized !== rawContent ? result.organized : null,
+        category: userCategory || result.analysis.suggested_category || '미분류',
+        tags: userTags.length > 0 ? userTags : (result.analysis.tags||[]),
+        ai_summary: result.analysis.summary || '',
+        ai_confidence: Math.round(conf * 100),
+        ai_suggested_category: result.analysis.suggested_category || '',
+        ai_suggested_tags: result.analysis.tags || []
+      };
+      // id로 업데이트
+      if (savedId) {
+        fetch(SUPABASE_URL + '/rest/v1/memos?id=eq.' + savedId, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_KEY
+          },
+          body: JSON.stringify(patch)
+        }).then(function() {
+          showToast('AI 정리 완료 ✦ ' + Math.round(conf*100) + '% 신뢰도');
+          loadMemos();
+        });
+      }
+    }).catch(function(err) {
+      // AI 실패해도 이미 저장됐으니 조용히 넘어감
+      console.warn('AI 정리 생략:', err.message);
     });
   }).catch(function(err){ console.error(err); showToast('오류: ' + err.message); });
 }
