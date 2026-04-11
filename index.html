@@ -1373,7 +1373,7 @@ function renderMemoList(memos) {
     var isActive = memo.id === currentMemoId;
     var cat = memo.category || '미분류';
     var pillClass = catPillClass(cat);
-    var src = memo.organized_content || memo.raw_content || '';
+    var src = memo.content || '';
     var preview = src.replace(/\n/g,' ').substring(0,80);
     var tags = (memo.tags || []).slice(0,2).map(function(t){
       return '<span class="pill pill-tag">#' + escHtml(t) + '</span>';
@@ -1402,19 +1402,11 @@ function renderDetail(memo) {
   var scroll = document.getElementById('detail-scroll');
   var cat = memo.category || '미분류';
   var pillClass = catPillClass(cat);
-  var hasOrganized = !!(memo.organized_content && memo.organized_content.trim());
+  var bodyHtml = memo.content && memo.content.trim()
+    ? renderOrganized(memo.content)
+    : '<div class="organized-body"><span class="ob-item ob-plain">내용 없음</span></div>';
 
-  var bodyHtml = hasOrganized
-    ? renderOrganized(memo.organized_content)
-    : '<div class="organized-body"><span class="ob-item ob-plain">' + escHtml(memo.raw_content||'') + '</span></div>';
-
-  var rawToggle = hasOrganized
-    ? '<div class="raw-toggle" onclick="toggleRaw(this)">'
-      + '<span class="raw-toggle-icon">▸</span> 원문 보기'
-      + '<div class="raw-content" style="display:none;margin-top:8px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius);font-size:12px;color:var(--text3);line-height:1.7;white-space:pre-wrap">'
-      + escHtml(memo.raw_content||'')
-      + '</div></div>'
-    : '';
+  var rawToggle = '';
 
   var aiCard = '';
   if (memo.ai_summary) {
@@ -1562,15 +1554,17 @@ function callGemini(prompt, maxTokens, retryCount) {
 
 // ===== 미리보기용 프롬프트 (정리만, 500토큰) =====
 function buildOrganizePrompt(raw) {
-  return '메모 정리. 규칙: 주요항목 "- ", 하위항목 "  ㄴ ", 번호항목 "1. ". '
-    + '구어체→명사형 ("해야할것같음"→"검토필요"). 결과만 출력.\n\n원문:\n' + raw;
+  return '메모 형식 정리. 중요: 내용·단어 추가/삭제/변경 금지. 형식과 말투만 정리.\n'
+    + '규칙: 주요항목 "- ", 하위항목 "  ㄴ ", 번호항목 "1. ".\n'
+    + '말투: 단어/명사형으로 끝나게 ("해야할것같음"→"검토 필요").\n'
+    + '원문의 모든 내용 100% 유지. 결과만 출력.\n\n원문:\n' + raw;
 }
 
 // ===== 저장용 통합 프롬프트 (정리+분석, 800토큰) =====
 function buildCombinedPrompt(raw, title) {
   var cats = Object.keys(catData).join('/');
   return '두 가지를 순서대로 출력하세요.\n'
-    + '[정리] 주요항목 "- ", 하위항목 "  ㄴ ", 번호항목 "1. ". 구어체→명사형. 결과만.\n'
+    + '[정리] 내용·단어 추가/삭제/변경 금지. 형식과 말투만 정리. 주요항목 "- ", 하위항목 "  ㄴ ", 번호항목 "1. ". 단어/명사형 말투. 원문 내용 100% 보존. 결과만.\n'
     + '[JSON] 다음 형식 그대로: {"c":"' + cats + ' 중 하나","t":["태그1","태그2"],"s":"요약","q":0.0~1.0}\n\n'
     + (title ? '제목:' + title + '\n' : '')
     + '원문:\n' + raw + '\n\n[정리]\n';
@@ -1711,8 +1705,7 @@ function saveMemo() {
   // ① 즉시 raw로 저장 (AI 기다리지 않음)
   var initialMemo = {
     title: title || '제목 없음',
-    raw_content: rawContent,
-    organized_content: cachedPreview ? cachedPreview.organized : null,
+    content: cachedPreview ? cachedPreview.organized : rawContent,
     category: userCategory || '미분류',
     tags: userTags,
     ai_summary: '',
@@ -1748,7 +1741,7 @@ function saveMemo() {
       var finalTitle = title || (result.analysis.summary||'').substring(0,30) || '제목 없음';
       var patch = {
         title: finalTitle,
-        organized_content: result.organized !== rawContent ? result.organized : null,
+        content: result.organized || rawContent,
         category: userCategory || result.analysis.suggested_category || '미분류',
         tags: userTags.length > 0 ? userTags : (result.analysis.tags||[]),
         ai_summary: result.analysis.summary || '',
