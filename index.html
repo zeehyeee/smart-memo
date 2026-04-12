@@ -553,50 +553,50 @@ function toggleCat(id) {
       <div class="nav-item cat-parent" onclick="toggleCat('work')">
         <span class="cat-arrow" id="arrow-work">▾</span>
         <div class="nav-dot cat-dot-blue"></div>업무
-        <span class="cat-count">12</span>
+        <span class="cat-count" data-cat="업무">12</span>
       </div>
       <div class="cat-children" id="cat-work">
         <!-- 카피 (펼침) -->
         <div class="nav-item cat-sub" onclick="toggleCat('copy')">
           <span class="cat-arrow small" id="arrow-copy">▾</span>
           <div class="nav-dot" style="background:#5B9BD5"></div>카피
-          <span class="cat-count">7</span>
+          <span class="cat-count" data-cat="카피">7</span>
         </div>
         <div class="cat-children" id="cat-copy">
           <div class="nav-item cat-leaf active" onclick="filterBySidebarCat(this,'디벨롭')">
             <span class="leaf-line"></span>
             <div class="nav-dot" style="background:#5B9BD5;opacity:0.5"></div>디벨롭
-            <span class="cat-count">4</span>
+            <span class="cat-count" data-cat="디벨롭">4</span>
           </div>
           <div class="nav-item cat-leaf" onclick="filterBySidebarCat(this,'완료')">
             <span class="leaf-line"></span>
             <div class="nav-dot" style="background:#3B6D11;opacity:0.7"></div>완료
-            <span class="cat-count">3</span>
+            <span class="cat-count" data-cat="카피 > 완료">3</span>
           </div>
         </div>
         <!-- 전략 -->
         <div class="nav-item cat-sub" onclick="toggleCat('strategy')">
           <span class="cat-arrow small" id="arrow-strategy">▸</span>
           <div class="nav-dot" style="background:#5B9BD5"></div>전략
-          <span class="cat-count">3</span>
+          <span class="cat-count" data-cat="전략">3</span>
         </div>
         <div class="cat-children collapsed" id="cat-strategy">
           <div class="nav-item cat-leaf" onclick="filterBySidebarCat(this,'진행중')">
             <span class="leaf-line"></span>
             <div class="nav-dot" style="background:#5B9BD5;opacity:0.5"></div>진행중
-            <span class="cat-count">2</span>
+            <span class="cat-count" data-cat="진행중">2</span>
           </div>
           <div class="nav-item cat-leaf" onclick="filterBySidebarCat(this,'완료')">
             <span class="leaf-line"></span>
             <div class="nav-dot" style="background:#3B6D11;opacity:0.7"></div>완료
-            <span class="cat-count">1</span>
+            <span class="cat-count" data-cat="전략 > 완료">1</span>
           </div>
         </div>
         <!-- 분석 -->
         <div class="nav-item cat-sub">
           <span class="cat-arrow small" style="opacity:0">▸</span>
           <div class="nav-dot" style="background:#5B9BD5"></div>분석
-          <span class="cat-count">2</span>
+          <span class="cat-count" data-cat="분석">2</span>
         </div>
       </div>
 
@@ -604,18 +604,18 @@ function toggleCat(id) {
       <div class="nav-item cat-parent" onclick="toggleCat('idea')">
         <span class="cat-arrow" id="arrow-idea">▸</span>
         <div class="nav-dot cat-dot-purple"></div>아이디어
-        <span class="cat-count">5</span>
+        <span class="cat-count" data-cat="아이디어">5</span>
       </div>
       <div class="cat-children collapsed" id="cat-idea">
         <div class="nav-item cat-sub">
           <span class="cat-arrow small" style="opacity:0">▸</span>
           <div class="nav-dot" style="background:#9B59D5"></div>캠페인
-          <span class="cat-count">3</span>
+          <span class="cat-count" data-cat="캠페인">3</span>
         </div>
         <div class="nav-item cat-sub">
           <span class="cat-arrow small" style="opacity:0">▸</span>
           <div class="nav-dot" style="background:#9B59D5"></div>개선제안
-          <span class="cat-count">2</span>
+          <span class="cat-count" data-cat="개선제안">2</span>
         </div>
       </div>
 
@@ -623,13 +623,13 @@ function toggleCat(id) {
       <div class="nav-item cat-parent" onclick="toggleCat('personal')">
         <span class="cat-arrow" id="arrow-personal">▸</span>
         <div class="nav-dot cat-dot-green"></div>개인
-        <span class="cat-count">3</span>
+        <span class="cat-count" data-cat="개인">3</span>
       </div>
       <div class="cat-children collapsed" id="cat-personal">
         <div class="nav-item cat-sub">
           <span class="cat-arrow small" style="opacity:0">▸</span>
           <div class="nav-dot" style="background:#3B6D11"></div>메모
-          <span class="cat-count">3</span>
+          <span class="cat-count" data-cat="메모">3</span>
         </div>
       </div>
       <div class="nav-section">시스템</div>
@@ -1420,8 +1420,9 @@ function loadMemos() {
     return res.json();
   }).then(function(data) {
     allMemos = data || [];
-renderFilterBar(); //
+    renderFilterBar();
     renderMemoList(allMemos);
+    updateSidebarCounts();
   }).catch(function(err) {
     header.textContent = '연결 실패';
     scroll.innerHTML = '<div class="memo-empty"><div class="memo-empty-icon">⚠</div><div>' + escHtml(err.message) + '<br><small>Supabase 연결 확인 필요</small></div></div>';
@@ -1476,6 +1477,7 @@ function renderDetail(memo) {
     : '<div class="organized-body"><span class="ob-item ob-plain">내용 없음</span></div>';
 
   var rawToggle = '';
+  var hasOrganized = !!(memo.ai_summary || (memo.ai_confidence && memo.ai_confidence > 0));
 
   var aiCard = '';
   if (memo.ai_summary) {
@@ -1596,7 +1598,7 @@ function updateLevel3() {
 function callGemini(prompt, maxTokens, retryCount) {
   retryCount = retryCount || 0;
   return fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=' + GEMINI_API_KEY,
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' + GEMINI_API_KEY,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1856,6 +1858,8 @@ function toggleTree(e, id) {
   var collapsed = el.classList.toggle('collapsed');
   e.target.textContent = collapsed ? '\u25b8' : '\u25be';
 }
+var currentEditCatPath = null;
+
 function selectCat(node, breadcrumb, name) {
   document.querySelectorAll('.tree-node').forEach(function(n){ n.classList.remove('selected'); });
   node.classList.add('selected');
@@ -1864,23 +1868,64 @@ function selectCat(node, breadcrumb, name) {
   document.getElementById('edit-form').style.display = 'block';
   document.getElementById('edit-breadcrumb').textContent = breadcrumb;
   document.getElementById('edit-name').value = name;
-  var counts = {'업무':12,'카피':7,'디벨롭':4,'완료':3,'전략':3,'아이디어':5,'개인':3,'캠페인':3};
-  document.getElementById('edit-count').textContent = (counts[name]||0) + '개';
+  currentEditCatPath = breadcrumb;
+  var parts = breadcrumb.split(' > ');
+  var n = allMemos.filter(function(m) {
+    var c = m.category || '';
+    return parts.every(function(p){ return c.indexOf(p) !== -1; });
+  }).length;
+  document.getElementById('edit-count').textContent = n + '개';
 }
 function cancelEdit() {
   document.getElementById('edit-form').style.display = 'none';
   document.getElementById('edit-empty').style.display = 'flex';
   document.querySelectorAll('.tree-node').forEach(function(n){ n.classList.remove('selected'); });
+  currentEditCatPath = null;
 }
 function saveEdit() {
-  if (!document.getElementById('edit-name').value.trim()) return;
+  var newName = document.getElementById('edit-name').value.trim();
+  if (!newName) return;
+  if (currentEditCatPath) {
+    var parts = currentEditCatPath.split(' > ');
+    var oldName = parts[parts.length - 1];
+    if (oldName !== newName) {
+      if (parts.length === 1) {
+        if (catData[oldName] !== undefined) { catData[newName] = catData[oldName]; delete catData[oldName]; }
+      } else if (parts.length === 2) {
+        var l1 = parts[0];
+        if (catData[l1] && catData[l1][oldName] !== undefined) { catData[l1][newName] = catData[l1][oldName]; delete catData[l1][oldName]; }
+      } else if (parts.length === 3) {
+        var l1b = parts[0], l2b = parts[1];
+        if (catData[l1b] && catData[l1b][l2b]) {
+          var idx = catData[l1b][l2b].indexOf(oldName);
+          if (idx !== -1) catData[l1b][l2b][idx] = newName;
+        }
+      }
+    }
+  }
+  syncCatUI();
   showToast('저장됐어요');
   cancelEdit();
 }
 function deleteCat(name) {
-  if (confirm('"'+name+'" 카테고리를 삭제할까요?\n포함된 메모는 미분류로 이동돼요.')) {
-    showToast('"'+name+'" 삭제됐어요'); cancelEdit();
+  if (!confirm('"'+name+'" 카테고리를 삭제할까요?\n포함된 메모는 미분류로 이동돼요.')) return;
+  if (catData[name] !== undefined) {
+    delete catData[name];
+  } else {
+    Object.keys(catData).forEach(function(l1) {
+      if (catData[l1][name] !== undefined) {
+        delete catData[l1][name];
+      } else {
+        Object.keys(catData[l1]).forEach(function(l2) {
+          var idx = catData[l1][l2].indexOf(name);
+          if (idx !== -1) catData[l1][l2].splice(idx, 1);
+        });
+      }
+    });
   }
+  syncCatUI();
+  showToast('"'+name+'" 삭제됐어요');
+  cancelEdit();
 }
 var addParent = '';
 function showAddForm(parent) {
@@ -1899,7 +1944,23 @@ function cancelAdd() {
 function confirmAdd() {
   var name = document.getElementById('add-name').value.trim();
   if (!name) { showToast('이름을 입력해주세요'); return; }
-  showToast('"'+name+'" 추가됐어요'); cancelAdd();
+  if (addParent === 'root') {
+    catData[name] = {};
+  } else if (catData[addParent] !== undefined) {
+    catData[addParent][name] = [];
+  } else {
+    var found = false;
+    Object.keys(catData).forEach(function(l1) {
+      if (!found && catData[l1][addParent] !== undefined) {
+        catData[l1][addParent].push(name);
+        found = true;
+      }
+    });
+    if (!found) catData[name] = {};
+  }
+  syncCatUI();
+  showToast('"'+name+'" 추가됐어요');
+  cancelAdd();
 }
 function pickColor(el) {
   document.querySelectorAll('#color-picker .color-dot').forEach(function(d){ d.classList.remove('active'); });
@@ -1908,6 +1969,36 @@ function pickColor(el) {
 function pickAddColor(el) {
   document.querySelectorAll('#add-color-picker .color-dot').forEach(function(d){ d.classList.remove('active'); });
   el.classList.add('active');
+}
+
+// ===== 사이드바 카운트 업데이트 =====
+function updateSidebarCounts() {
+  document.querySelectorAll('.sidebar .cat-count[data-cat]').forEach(function(span) {
+    var parts = span.dataset.cat.split(' > ');
+    var n = allMemos.filter(function(m) {
+      var c = m.category || '';
+      return parts.every(function(p){ return c.indexOf(p) !== -1; });
+    }).length;
+    span.textContent = n;
+  });
+}
+
+// ===== catData 변경 후 UI 동기화 =====
+function syncCatUI() {
+  // 메모 작성 폼 level1 select 갱신
+  var l1El = document.getElementById('new-cat-level1');
+  if (l1El) {
+    var prev = l1El.value;
+    l1El.innerHTML = '<option value="">1단계 선택</option>';
+    Object.keys(catData).forEach(function(c) {
+      l1El.innerHTML += '<option value="' + c + '"' + (prev === c ? ' selected' : '') + '>' + c + '</option>';
+    });
+    document.getElementById('new-cat-level2').innerHTML = '<option value="">2단계 선택</option>';
+    document.getElementById('new-cat-level2').disabled = true;
+    document.getElementById('new-cat-level3').innerHTML = '<option value="">3단계 선택</option>';
+    document.getElementById('new-cat-level3').disabled = true;
+  }
+  updateSidebarCounts();
 }
 
 // ===== 사이드바 카테고리 leaf 필터링 =====
