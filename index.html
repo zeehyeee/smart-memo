@@ -666,7 +666,9 @@ function toggleCat(id) {
     <!-- 필터바 -->
     <div class="filter-bar">
       <span class="filter-label">필터:</span>
-      <button class="chip active">업무 <span class="chip-x">×</span></button>
+      <button class="chip active" data-filter="업무" data-type="cat">업무 <span class="chip-x">×</span></button>
+<button class="chip active" data-filter="2026년 4월" data-type="date">2026년 4월 <span class="chip-x">×</span></button>
+<button class="chip" data-filter="아이디어" data-type="cat">아이디어</button>
       <button class="chip active">2026년 4월 <span class="chip-x">×</span></button>
       <button class="chip">아이디어</button>
       <button class="chip">개인</button>
@@ -1338,6 +1340,77 @@ function renderOrganized(text) {
   return '<div class="organized-body">' + html + '</div>';
 }
 
+// ── 필터 상태 ──────────────────────────────
+var activeFilters = { cats: [], tags: [], date: null };
+
+// ── filter-bar 렌더링 ───────────────────────
+function renderFilterBar() {
+  var bar = document.querySelector('.filter-bar');
+  if (!bar) return;
+
+  // 현재 allMemos에서 존재하는 cat/tag 수집
+  var cats = Object.keys(catData || {});
+  var tags = [];
+  (allMemos || []).forEach(function(m) {
+    (m.tags || []).forEach(function(t) {
+      if (!tags.includes(t)) tags.push(t);
+    });
+  });
+
+  var html = '<span class="filter-label">필터:</span>';
+
+  cats.forEach(function(c) {
+    var isActive = activeFilters.cats.includes(c);
+    html += '<button class="chip' + (isActive ? ' active' : '') + '" data-type="cat" data-filter="' + c + '">'
+      + c + (isActive ? ' <span class="chip-x">×</span>' : '') + '</button>';
+  });
+  tags.forEach(function(t) {
+    var isActive = activeFilters.tags.includes(t);
+    html += '<button class="chip' + (isActive ? ' active' : '') + '" data-type="tag" data-filter="' + t + '">'
+      + '#' + t + (isActive ? ' <span class="chip-x">×</span>' : '') + '</button>';
+  });
+
+  bar.innerHTML = html;
+}
+
+// ── chip 클릭 이벤트 위임 ───────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  var bar = document.querySelector('.filter-bar');
+  if (!bar) return;
+  bar.addEventListener('click', function(e) {
+    var chip = e.target.closest('.chip');
+    if (!chip) return;
+    var type = chip.dataset.type;
+    var val  = chip.dataset.filter;
+    if (!val) return;
+
+    if (type === 'cat') {
+      var idx = activeFilters.cats.indexOf(val);
+      if (idx > -1) activeFilters.cats.splice(idx, 1);
+      else activeFilters.cats.push(val);
+    } else if (type === 'tag') {
+      var idx2 = activeFilters.tags.indexOf(val);
+      if (idx2 > -1) activeFilters.tags.splice(idx2, 1);
+      else activeFilters.tags.push(val);
+    }
+
+    applyFilters();
+  });
+});
+
+// ── 필터 적용 후 메모 목록 갱신 ────────────
+function applyFilters() {
+  var filtered = (allMemos || []).filter(function(m) {
+    var catOk = activeFilters.cats.length === 0 || activeFilters.cats.includes(m.category);
+    var tagOk = activeFilters.tags.length === 0 || activeFilters.tags.some(function(t) {
+      return (m.tags || []).includes(t);
+    });
+    return catOk && tagOk;
+  });
+  renderFilterBar();
+  renderMemoList(filtered);
+}
+
 // ===== Supabase: 메모 불러오기 =====
 function loadMemos() {
   var header = document.getElementById('list-header');
@@ -1352,6 +1425,7 @@ function loadMemos() {
     return res.json();
   }).then(function(data) {
     allMemos = data || [];
+renderFilterBar(); //
     renderMemoList(allMemos);
   }).catch(function(err) {
     header.textContent = '연결 실패';
@@ -1857,6 +1931,24 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   loadMemos();
 });
+
+document.querySelector('.filter-bar').addEventListener('click', function(e) {
+  var chip = e.target.closest('.chip');
+  if (!chip) return;
+  var filterVal = chip.dataset.filter;
+  var filterType = chip.dataset.type;
+  if (!filterVal) return;
+
+  if (chip.classList.contains('active')) {
+    // active chip → 필터 제거
+    chip.classList.remove('active');
+    // 여기서 activeFilters 등 상태 변수에서도 제거 후 loadMemos() 재호출
+  } else {
+    // inactive chip → 필터 추가
+    chip.classList.add('active');
+  }
+});
+
 </script>
 
 </body>
