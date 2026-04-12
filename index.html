@@ -1241,7 +1241,22 @@ function toggleCat(id) {
 
 <script>
 // ===== API 설정 =====
-var GEMINI_API_KEY = "__GEMINI_KEY__";
+// Worker를 통해 서빙되면 __GEMINI_KEY__가 실제 키로 치환됨
+// 직접 열리는 경우 localStorage 또는 사용자 입력으로 폴백
+var GEMINI_API_KEY = (function() {
+  var injected = "__GEMINI_KEY__";
+  if (injected && injected !== "__GEMINI_KEY__") return injected;
+  var stored = localStorage.getItem('gmk');
+  if (stored) return stored;
+  var input = prompt(
+    'Gemini API 키를 입력하세요.\n(입력값은 이 브라우저에만 저장됩니다)'
+  );
+  if (input && input.trim()) {
+    localStorage.setItem('gmk', input.trim());
+    return input.trim();
+  }
+  return '';
+})();
 var SUPABASE_URL = "https://gaksbjhjujaeotgttzyh.supabase.co";
 var SUPABASE_KEY = "sb_publishable_hdGdA4ugDKwDHRhPG6krTg_GklsJUm7";
 
