@@ -544,6 +544,9 @@ function toggleCat(id) {
       <div class="nav-item" id="nav-starred" onclick="showStarredMemos(this)">
         <div class="nav-dot"></div>중요 메모
       </div>
+      <div class="nav-item" onclick="openModal('modal-cat')">
+        <div class="nav-dot"></div>카테고리 관리
+      </div>
       <div class="nav-section">카테고리</div>
 
       <!-- 업무 (펼침) -->
@@ -629,6 +632,12 @@ function toggleCat(id) {
           <span class="cat-count" data-cat="메모">3</span>
         </div>
       </div>
+
+      <!-- 미분류 -->
+      <div class="nav-item cat-parent" onclick="filterBySidebarUnclassified(this)">
+        <div class="nav-dot" style="background:var(--border2)"></div>미분류
+        <span class="cat-count" id="count-unclassified">0</span>
+      </div>
     </div>
   </div>
 
@@ -647,7 +656,6 @@ function toggleCat(id) {
         <span class="search-icon">⌕</span>
         <input type="text" value="마케팅 전략" placeholder="메모 검색 (내용, 제목, 태그)">
       </div>
-      <button class="topbar-btn active">필터 ON</button>
       <button class="new-btn">+ 새 메모</button>
     </div>
 
@@ -1315,7 +1323,7 @@ function toggleCat(id) {
 
 <script>
 // ===== API 설정 =====
-var GEMINI_API_KEY = "AIzaSyDn3QytiHrfoiyzl_KnWKwc4VWlU1Ra-Zc";
+var GEMINI_API_KEY = "__GEMINI_KEY__";
 var SUPABASE_URL = "https://gaksbjhjujaeotgttzyh.supabase.co";
 var SUPABASE_KEY = "sb_publishable_hdGdA4ugDKwDHRhPG6krTg_GklsJUm7";
 
@@ -2204,6 +2212,19 @@ function updateSidebarCounts() {
     }).length;
     span.textContent = n;
   });
+  // 미분류 카운트
+  var unc = document.getElementById('count-unclassified');
+  if (unc) {
+    unc.textContent = allMemos.filter(function(m){ return !m.category || m.category === '미분류'; }).length;
+  }
+}
+
+// ===== 미분류 필터링 =====
+function filterBySidebarUnclassified(el) {
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  el.classList.add('active');
+  var filtered = allMemos.filter(function(m){ return !m.category || m.category === '미분류'; });
+  renderMemoList(filtered);
 }
 
 // ===== catData 변경 후 UI 동기화 =====
