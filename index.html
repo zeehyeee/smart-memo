@@ -538,14 +538,11 @@ function toggleCat(id) {
   <div class="sidebar">
     <div class="logo">smart<em>memo</em></div>
     <div class="nav">
-      <div class="nav-item active">
+      <div class="nav-item active" id="nav-all" onclick="showAllMemos(this)">
         <div class="nav-dot"></div>전체 메모
       </div>
-      <div class="nav-item">
-        <div class="nav-dot"></div>그룹 탐색
-      </div>
-      <div class="nav-item">
-        <div class="nav-dot"></div>검색
+      <div class="nav-item" id="nav-starred" onclick="showStarredMemos(this)">
+        <div class="nav-dot"></div>중요 메모
       </div>
       <div class="nav-section">카테고리</div>
 
@@ -632,14 +629,6 @@ function toggleCat(id) {
           <span class="cat-count" data-cat="메모">3</span>
         </div>
       </div>
-      <div class="nav-section">시스템</div>
-      <div class="nav-item">
-        <div class="nav-dot"></div>동기화 상태
-        <span class="badge">1</span>
-      </div>
-      <div class="nav-item">
-        <div class="nav-dot"></div>설정
-      </div>
     </div>
   </div>
 
@@ -647,9 +636,9 @@ function toggleCat(id) {
   <div class="main">
 
     <!-- 동기화 배너 -->
-    <div class="banner sync">
-      <div class="blink"></div>
-      3개 변경사항 동기화 중... · iPhone에서 작성한 메모 포함
+    <div class="banner sync" id="sync-banner">
+      <div class="blink" id="banner-blink"></div>
+      <span id="banner-text">메모 불러오는 중...</span>
     </div>
 
     <!-- 상단바 -->
@@ -659,7 +648,6 @@ function toggleCat(id) {
         <input type="text" value="마케팅 전략" placeholder="메모 검색 (내용, 제목, 태그)">
       </div>
       <button class="topbar-btn active">필터 ON</button>
-      <button class="topbar-btn">정렬: 관련성순 ▾</button>
       <button class="new-btn">+ 새 메모</button>
     </div>
 
@@ -754,8 +742,50 @@ function toggleCat(id) {
       </div>
     </div>
     <div class="modal-footer">
+      <button type="button" id="new-star-btn" class="star-modal-btn" onclick="toggleNewStar()">☆ 중요</button>
       <button class="modal-btn" onclick="closeModal('modal-new-memo')">취소</button>
       <button class="modal-btn primary" onclick="saveMemo()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 메모 수정 모달 ===== -->
+<div class="modal-overlay" id="modal-edit-memo" onclick="closeModal('modal-edit-memo')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">메모 수정</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-memo')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-memo-id">
+      <input class="memo-input-title" id="edit-memo-title" type="text" placeholder="제목 (선택)">
+      <textarea class="memo-input-content" id="edit-memo-content" placeholder="내용" style="height:160px;margin-bottom:14px"></textarea>
+      <div class="form-row">
+        <label class="form-label">카테고리</label>
+        <div class="cat-select-wrap">
+          <select class="form-select" id="edit-cat-l1" onchange="editUpdateLevel2()">
+            <option value="">1단계 선택</option>
+          </select>
+          <select class="form-select" id="edit-cat-l2" disabled onchange="editUpdateLevel3()">
+            <option value="">2단계 선택</option>
+          </select>
+          <select class="form-select" id="edit-cat-l3" disabled>
+            <option value="">3단계 선택</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">태그</label>
+        <div class="tag-input-wrap">
+          <div class="tag-list" id="edit-tag-list"></div>
+          <input class="tag-input" id="edit-tag-input" type="text" placeholder="태그 입력 후 Enter">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" id="edit-star-btn" class="star-modal-btn" onclick="toggleEditStar()">☆ 중요</button>
+      <button class="modal-btn" onclick="closeModal('modal-edit-memo')">취소</button>
+      <button class="modal-btn primary" onclick="saveEditMemo()">저장</button>
     </div>
   </div>
 </div>
@@ -1250,6 +1280,26 @@ function toggleCat(id) {
 .color-dot.active { border-color: var(--text1); transform: scale(1.1); }
 .edit-actions, .add-actions { display: flex; gap: 8px; margin-top: 16px; }
 
+/* ===== 별표 버튼 ===== */
+.star-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 15px; padding: 0 3px; color: var(--text3);
+  line-height: 1; flex-shrink: 0; transition: color 0.1s;
+}
+.star-btn:hover { color: #F59E0B; }
+.star-btn.starred { color: #F59E0B; }
+.star-modal-btn {
+  height: 34px; padding: 0 14px;
+  font-size: 12px; font-weight: 500;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  background: var(--surface); color: var(--text2);
+  cursor: pointer; font-family: inherit;
+  margin-right: auto; transition: all 0.1s;
+}
+.star-modal-btn:hover { border-color: #F59E0B; color: #92510D; }
+.star-modal-btn.starred { background: #FEF3C7; border-color: #F59E0B; color: #92510D; }
+
 /* ===== 토스트 ===== */
 .toast {
   position: fixed; bottom: 24px; left: 50%;
@@ -1423,6 +1473,7 @@ function loadMemos() {
     renderFilterBar();
     renderMemoList(allMemos);
     updateSidebarCounts();
+    updateBanner();
   }).catch(function(err) {
     header.textContent = '연결 실패';
     scroll.innerHTML = '<div class="memo-empty"><div class="memo-empty-icon">⚠</div><div>' + escHtml(err.message) + '<br><small>Supabase 연결 확인 필요</small></div></div>';
@@ -1449,8 +1500,11 @@ function renderMemoList(memos) {
       return '<span class="pill pill-tag">#' + escHtml(t) + '</span>';
     }).join('');
     var conf = memo.ai_confidence ? '<span class="pill pill-ai">AI · ' + memo.ai_confidence + '%</span>' : '';
+    var starCls = memo.is_starred ? ' starred' : '';
+    var starIcon = memo.is_starred ? '★' : '☆';
     html += '<div class="memo-card' + (isActive ? ' active' : '') + '" onclick="selectMemo(\'' + memo.id + '\')">'
       + '<div class="card-row1"><div class="card-title">' + escHtml(memo.title || '제목 없음') + '</div>'
+      + '<button class="star-btn' + starCls + '" onclick="toggleStar(event,\'' + memo.id + '\')" title="중요 메모">' + starIcon + '</button>'
       + '<div class="card-time">' + formatDate(memo.created_at) + '</div></div>'
       + '<div class="card-preview">' + escHtml(preview) + (src.length > 80 ? '…' : '') + '</div>'
       + '<div class="card-footer"><span class="pill ' + pillClass + '">' + escHtml(cat) + '</span>' + tags + conf + '</div>'
@@ -1499,6 +1553,8 @@ function renderDetail(memo) {
     ? '<div style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:500;color:var(--purple);background:var(--purple-light);padding:2px 8px;border-radius:8px;margin-bottom:12px">✦ AI 정리됨</div>'
     : '';
 
+  var detailStarCls = memo.is_starred ? ' starred' : '';
+  var detailStarIcon = memo.is_starred ? '★' : '☆';
   scroll.innerHTML = '<div class="detail-card">'
     + '<div class="detail-title">' + escHtml(memo.title||'제목 없음') + '</div>'
     + '<div class="detail-meta">' + formatDateFull(memo.created_at) + ' · ' + escHtml(cat) + '</div>'
@@ -1506,8 +1562,169 @@ function renderDetail(memo) {
     + '<div class="detail-body">' + bodyHtml + '</div>'
     + rawToggle
     + '<div class="detail-divider"></div>'
-    + '<div class="detail-actions"><button class="det-btn" onclick="deleteMemo(\'' + memo.id + '\')">삭제</button></div>'
+    + '<div class="detail-actions">'
+    + '<button class="det-btn star-btn' + detailStarCls + '" style="flex:none;padding:0 10px;font-size:16px" onclick="toggleStar(event,\'' + memo.id + '\')" title="중요 메모">' + detailStarIcon + '</button>'
+    + '<button class="det-btn primary" onclick="openEditModal(\'' + memo.id + '\')">수정</button>'
+    + '<button class="det-btn" onclick="deleteMemo(\'' + memo.id + '\')">삭제</button>'
+    + '</div>'
     + '</div>' + aiCard;
+}
+
+// ===== 별표 토글 =====
+function toggleStar(e, id) {
+  e.stopPropagation();
+  var memo = allMemos.find(function(m){ return m.id === id; });
+  if (!memo) return;
+  memo.is_starred = !memo.is_starred;
+  fetch(SUPABASE_URL + '/rest/v1/memos?id=eq.' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+    body: JSON.stringify({ is_starred: memo.is_starred })
+  }).catch(function(err){ showToast('별표 저장 실패: ' + err.message); });
+  renderMemoList(allMemos);
+  renderDetail(memo);
+  showToast(memo.is_starred ? '중요 메모로 지정했어요 ★' : '중요 메모 해제했어요');
+}
+
+// ===== 새 메모 별표 토글 =====
+var newStarred = false;
+function toggleNewStar() {
+  newStarred = !newStarred;
+  var btn = document.getElementById('new-star-btn');
+  btn.textContent = newStarred ? '★ 중요' : '☆ 중요';
+  btn.classList.toggle('starred', newStarred);
+}
+
+// ===== 수정 모달 별표 토글 =====
+var editStarred = false;
+function toggleEditStar() {
+  editStarred = !editStarred;
+  var btn = document.getElementById('edit-star-btn');
+  btn.textContent = editStarred ? '★ 중요' : '☆ 중요';
+  btn.classList.toggle('starred', editStarred);
+}
+
+// ===== 수정 모달 열기 =====
+function openEditModal(id) {
+  var memo = allMemos.find(function(m){ return m.id === id; });
+  if (!memo) return;
+  document.getElementById('edit-memo-id').value = id;
+  document.getElementById('edit-memo-title').value = memo.title || '';
+  document.getElementById('edit-memo-content').value = memo.content || '';
+  // 카테고리 select 초기화
+  var l1El = document.getElementById('edit-cat-l1');
+  l1El.innerHTML = '<option value="">1단계 선택</option>';
+  Object.keys(catData).forEach(function(c) {
+    l1El.innerHTML += '<option value="' + c + '">' + c + '</option>';
+  });
+  var catParts = (memo.category || '').split(' > ');
+  l1El.value = catParts[0] || '';
+  editUpdateLevel2();
+  setTimeout(function() {
+    document.getElementById('edit-cat-l2').value = catParts[1] || '';
+    editUpdateLevel3();
+    setTimeout(function() {
+      document.getElementById('edit-cat-l3').value = catParts[2] || '';
+    }, 0);
+  }, 0);
+  // 태그
+  editTags = (memo.tags || []).slice();
+  var list = document.getElementById('edit-tag-list');
+  list.innerHTML = '';
+  editTags.forEach(function(t) {
+    var item = document.createElement('div');
+    item.className = 'tag-item';
+    item.innerHTML = '#' + escHtml(t) + '<button onclick="removeEditTag(this,\'' + escHtml(t) + '\')">×</button>';
+    list.appendChild(item);
+  });
+  // 별표
+  editStarred = !!memo.is_starred;
+  var btn = document.getElementById('edit-star-btn');
+  btn.textContent = editStarred ? '★ 중요' : '☆ 중요';
+  btn.classList.toggle('starred', editStarred);
+  openModal('modal-edit-memo');
+  setTimeout(function(){ document.getElementById('edit-memo-content').focus(); }, 100);
+}
+
+// ===== 수정 모달 카테고리 =====
+function editUpdateLevel2() {
+  var l1 = document.getElementById('edit-cat-l1').value;
+  var l2 = document.getElementById('edit-cat-l2');
+  var l3 = document.getElementById('edit-cat-l3');
+  l2.innerHTML = '<option value="">2단계 선택</option>';
+  l3.innerHTML = '<option value="">3단계 선택</option>';
+  l2.disabled = true; l3.disabled = true;
+  if (l1 && catData[l1]) {
+    Object.keys(catData[l1]).forEach(function(k){ l2.innerHTML += '<option value="' + k + '">' + k + '</option>'; });
+    l2.disabled = false;
+  }
+}
+function editUpdateLevel3() {
+  var l1 = document.getElementById('edit-cat-l1').value;
+  var l2 = document.getElementById('edit-cat-l2').value;
+  var l3 = document.getElementById('edit-cat-l3');
+  l3.innerHTML = '<option value="">3단계 선택</option>';
+  l3.disabled = true;
+  if (l1 && l2 && catData[l1] && catData[l1][l2] && catData[l1][l2].length) {
+    catData[l1][l2].forEach(function(v){ l3.innerHTML += '<option value="' + v + '">' + v + '</option>'; });
+    l3.disabled = false;
+  }
+}
+
+// ===== 수정 모달 태그 =====
+var editTags = [];
+function removeEditTag(btn, name) {
+  editTags = editTags.filter(function(t){ return t !== name; });
+  btn.parentElement.remove();
+}
+
+// ===== 수정 저장 =====
+function saveEditMemo() {
+  var id = document.getElementById('edit-memo-id').value;
+  var title = document.getElementById('edit-memo-title').value.trim();
+  var content = document.getElementById('edit-memo-content').value.trim();
+  if (!content) { showToast('내용을 입력해주세요'); return; }
+  var l1 = document.getElementById('edit-cat-l1').value;
+  var l2 = document.getElementById('edit-cat-l2').value;
+  var l3 = document.getElementById('edit-cat-l3').value;
+  var category = [l1,l2,l3].filter(Boolean).join(' > ') || '미분류';
+  var patch = { title: title || '제목 없음', content: content, category: category, tags: editTags.slice(), is_starred: editStarred };
+  closeModal('modal-edit-memo');
+  fetch(SUPABASE_URL + '/rest/v1/memos?id=eq.' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    , body: JSON.stringify(patch)
+  }).then(function() {
+    var memo = allMemos.find(function(m){ return m.id === id; });
+    if (memo) { Object.assign(memo, patch); renderMemoList(allMemos); renderDetail(memo); updateSidebarCounts(); }
+    showToast('수정됐어요');
+  }).catch(function(err){ showToast('수정 실패: ' + err.message); });
+}
+
+// ===== 전체 메모 표시 =====
+function showAllMemos(el) {
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  el.classList.add('active');
+  renderMemoList(allMemos);
+}
+
+// ===== 중요 메모 표시 =====
+function showStarredMemos(el) {
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  el.classList.add('active');
+  var starred = allMemos.filter(function(m){ return m.is_starred; });
+  renderMemoList(starred);
+}
+
+// ===== 배너 업데이트 =====
+function updateBanner() {
+  var text = document.getElementById('banner-text');
+  var blink = document.getElementById('banner-blink');
+  if (!text) return;
+  if (!allMemos.length) { text.textContent = '저장된 메모가 없어요'; if (blink) blink.style.display = 'none'; return; }
+  var latest = allMemos.reduce(function(a, b){ return new Date(a.created_at) > new Date(b.created_at) ? a : b; });
+  text.textContent = formatDateFull(latest.created_at) + ' 작성 · 동기화 완료';
+  if (blink) blink.style.display = 'none';
 }
 
 // ===== 원문 토글 =====
@@ -1773,12 +1990,18 @@ function saveMemo() {
   document.getElementById('new-cat-level3').innerHTML = '<option value="">3단계 선택</option>';
   document.getElementById('new-cat-level3').disabled = true;
 
+  var userStarred = newStarred;
+  newStarred = false;
+  var starBtn = document.getElementById('new-star-btn');
+  if (starBtn) { starBtn.textContent = '☆ 중요'; starBtn.classList.remove('starred'); }
+
   // ① 즉시 raw로 저장 (AI 기다리지 않음)
   var initialMemo = {
     title: title || '제목 없음',
     content: cachedPreview ? cachedPreview.organized : rawContent,
     category: userCategory || '미분류',
     tags: userTags,
+    is_starred: userStarred,
     ai_summary: '',
     ai_confidence: 0,
     ai_suggested_category: '',
@@ -2014,6 +2237,21 @@ function filterBySidebarCat(el, catName) {
 // ===== 초기화 =====
 document.addEventListener('DOMContentLoaded', function() {
   initTagInput();
+  // 수정 모달 태그 입력
+  document.getElementById('edit-tag-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && this.value.trim()) {
+      e.preventDefault();
+      var name = this.value.trim();
+      if (editTags.indexOf(name) === -1) {
+        editTags.push(name);
+        var item = document.createElement('div');
+        item.className = 'tag-item';
+        item.innerHTML = '#' + escHtml(name) + '<button onclick="removeEditTag(this,\'' + escHtml(name) + '\')">×</button>';
+        document.getElementById('edit-tag-list').appendChild(item);
+      }
+      this.value = '';
+    }
+  });
   document.querySelector('.new-btn').onclick = function() {
     openModal('modal-new-memo');
     setTimeout(function(){ document.getElementById('new-content').focus(); }, 100);
