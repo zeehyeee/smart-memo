@@ -1395,11 +1395,7 @@ function loadMemos() {
     if (!res.ok) throw new Error('불러오기 실패 ' + res.status);
     return res.json();
   }).then(function(data) {
-    // 기존 로컬 별표 상태 보존 (is_starred 컬럼 없을 때 in-memory 유지)
-    var prevStarred = {};
-    allMemos.forEach(function(m){ if (m.is_starred) prevStarred[m.id] = true; });
     allMemos = data || [];
-    allMemos.forEach(function(m){ if (prevStarred[m.id]) m.is_starred = true; });
     renderFilterBar();
     renderMemoList(allMemos);
     renderSidebarCats();
@@ -1505,8 +1501,12 @@ function toggleStar(e, id) {
   e.stopPropagation();
   var memo = allMemos.find(function(m){ return m.id === id; });
   if (!memo) return;
-  // is_starred는 Supabase 컬럼이 없으므로 로컬(allMemos)에서만 관리
   memo.is_starred = !memo.is_starred;
+  fetch(SUPABASE_URL + '/rest/v1/memos?id=eq.' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+    body: JSON.stringify({ is_starred: memo.is_starred })
+  }).catch(function(err){ showToast('별표 저장 실패: ' + err.message); });
   renderMemoList(allMemos);
   renderDetail(memo);
   showToast(memo.is_starred ? '중요 메모로 지정했어요 ★' : '중요 메모 해제했어요');
@@ -1614,8 +1614,7 @@ function saveEditMemo() {
   var l2 = document.getElementById('edit-cat-l2').value;
   var l3 = document.getElementById('edit-cat-l3').value;
   var category = [l1,l2,l3].filter(Boolean).join(' > ') || '미분류';
-  // is_starred는 Supabase 컬럼 없으므로 PATCH 페이로드에서 제외
-  var patch = { title: title || '제목 없음', content: content, category: category, tags: editTags.slice() };
+  var patch = { title: title || '제목 없음', content: content, category: category, tags: editTags.slice(), is_starred: editStarred };
   closeModal('modal-edit-memo');
   fetch(SUPABASE_URL + '/rest/v1/memos?id=eq.' + id, {
     method: 'PATCH',
@@ -1623,7 +1622,7 @@ function saveEditMemo() {
     , body: JSON.stringify(patch)
   }).then(function() {
     var memo = allMemos.find(function(m){ return m.id === id; });
-    if (memo) { Object.assign(memo, patch, { is_starred: editStarred }); renderMemoList(allMemos); renderDetail(memo); updateSidebarCounts(); }
+    if (memo) { Object.assign(memo, patch); renderMemoList(allMemos); renderDetail(memo); updateSidebarCounts(); }
     showToast('수정됐어요');
   }).catch(function(err){ showToast('수정 실패: ' + err.message); });
 }
@@ -1928,7 +1927,7 @@ function saveMemo() {
     content: cachedPreview ? cachedPreview.organized : rawContent,
     category: userCategory || '미분류',
     tags: userTags,
-    // is_starred: Supabase 컬럼 없으므로 저장 제외 — 로컬에서만 관리
+    is_starred: userStarred,
     ai_summary: '',
     ai_confidence: 0,
     ai_suggested_category: '',
@@ -2039,6 +2038,7 @@ function saveEdit() {
     var parts = currentEditCatPath.split(' > ');
     var oldName = parts[parts.length - 1];
     if (oldName !== newName) {
+      // catData 업데이트
       if (parts.length === 1) {
         if (catData[oldName] !== undefined) { catData[newName] = catData[oldName]; delete catData[oldName]; }
       } else if (parts.length === 2) {
@@ -2051,6 +2051,23 @@ function saveEdit() {
           if (idx !== -1) catData[l1b][l2b][idx] = newName;
         }
       }
+      // 해당 카테고리 메모들 Supabase PATCH (category 이름 변경 반영)
+      var affectedIds = allMemos
+        .filter(function(m){ return (m.category || '').indexOf(oldName) !== -1; })
+        .map(function(m){ return m.id; });
+      affectedIds.forEach(function(mid) {
+        var memo = allMemos.find(function(m){ return m.id === mid; });
+        if (memo) {
+          var newCat = memo.category.split(' > ').map(function(p){ return p === oldName ? newName : p; }).join(' > ');
+          memo.category = newCat;
+          fetch(SUPABASE_URL + '/rest/v1/memos?id=eq.' + mid, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+            body: JSON.stringify({ category: newCat })
+          }).catch(function(err){ console.warn('카테고리 업데이트 실패:', err.message); });
+        }
+      });
+      currentEditCatPath = parts.slice(0, -1).concat(newName).join(' > ');
     }
   }
   syncCatUI();
@@ -2059,6 +2076,17 @@ function saveEdit() {
 }
 function deleteCat(name) {
   if (!confirm('"'+name+'" 카테고리를 삭제할까요?\n포함된 메모는 미분류로 이동돼요.')) return;
+  // 해당 카테고리 메모 먼저 '미분류'로 Supabase PATCH
+  var affected = allMemos.filter(function(m){ return (m.category || '').indexOf(name) !== -1; });
+  affected.forEach(function(memo) {
+    memo.category = '미분류';
+    fetch(SUPABASE_URL + '/rest/v1/memos?id=eq.' + memo.id, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY },
+      body: JSON.stringify({ category: '미분류' })
+    }).catch(function(err){ console.warn('카테고리 초기화 실패:', err.message); });
+  });
+  // catData 업데이트
   if (catData[name] !== undefined) {
     delete catData[name];
   } else {

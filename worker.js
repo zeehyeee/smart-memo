@@ -1,6 +1,8 @@
 export default {
   async fetch(request, env) {
-    if (!env.GEMINI_API_KEY) {
+    const key = (env.GEMINI_API_KEY || '').trim();
+
+    if (!key) {
       return new Response(
         'GEMINI_API_KEY 환경변수가 설정되지 않았습니다.\n' +
         '로컬: .dev.vars 파일에 GEMINI_API_KEY=실제키 입력 후 wrangler dev 재시작\n' +
@@ -15,7 +17,7 @@ export default {
       const assetReq = new Request(new URL('/index.html', request.url), request);
       const response = await env.ASSETS.fetch(assetReq);
       let html = await response.text();
-      html = html.replaceAll('__GEMINI_KEY__', env.GEMINI_API_KEY);
+      html = html.replaceAll('__GEMINI_KEY__', key);
       return new Response(html, {
         status: response.status,
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
