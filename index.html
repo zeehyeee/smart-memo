@@ -563,12 +563,12 @@ function toggleCat(id) {
           <span class="cat-count">7</span>
         </div>
         <div class="cat-children" id="cat-copy">
-          <div class="nav-item cat-leaf active">
+          <div class="nav-item cat-leaf active" onclick="filterBySidebarCat(this,'디벨롭')">
             <span class="leaf-line"></span>
             <div class="nav-dot" style="background:#5B9BD5;opacity:0.5"></div>디벨롭
             <span class="cat-count">4</span>
           </div>
-          <div class="nav-item cat-leaf">
+          <div class="nav-item cat-leaf" onclick="filterBySidebarCat(this,'완료')">
             <span class="leaf-line"></span>
             <div class="nav-dot" style="background:#3B6D11;opacity:0.7"></div>완료
             <span class="cat-count">3</span>
@@ -581,12 +581,12 @@ function toggleCat(id) {
           <span class="cat-count">3</span>
         </div>
         <div class="cat-children collapsed" id="cat-strategy">
-          <div class="nav-item cat-leaf">
+          <div class="nav-item cat-leaf" onclick="filterBySidebarCat(this,'진행중')">
             <span class="leaf-line"></span>
             <div class="nav-dot" style="background:#5B9BD5;opacity:0.5"></div>진행중
             <span class="cat-count">2</span>
           </div>
-          <div class="nav-item cat-leaf">
+          <div class="nav-item cat-leaf" onclick="filterBySidebarCat(this,'완료')">
             <span class="leaf-line"></span>
             <div class="nav-dot" style="background:#3B6D11;opacity:0.7"></div>완료
             <span class="cat-count">1</span>
@@ -669,11 +669,6 @@ function toggleCat(id) {
       <button class="chip active" data-filter="업무" data-type="cat">업무 <span class="chip-x">×</span></button>
 <button class="chip active" data-filter="2026년 4월" data-type="date">2026년 4월 <span class="chip-x">×</span></button>
 <button class="chip" data-filter="아이디어" data-type="cat">아이디어</button>
-      <button class="chip active">2026년 4월 <span class="chip-x">×</span></button>
-      <button class="chip">아이디어</button>
-      <button class="chip">개인</button>
-      <button class="chip">#CRM</button>
-      <button class="chip">#마케팅</button>
     </div>
 
     <!-- 컨텐츠 -->
@@ -1601,7 +1596,7 @@ function updateLevel3() {
 function callGemini(prompt, maxTokens, retryCount) {
   retryCount = retryCount || 0;
   return fetch(
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=' + GEMINI_API_KEY,
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=' + GEMINI_API_KEY,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1915,6 +1910,16 @@ function pickAddColor(el) {
   el.classList.add('active');
 }
 
+// ===== 사이드바 카테고리 leaf 필터링 =====
+function filterBySidebarCat(el, catName) {
+  document.querySelectorAll('.cat-leaf').forEach(function(leaf){ leaf.classList.remove('active'); });
+  el.classList.add('active');
+  var filtered = allMemos.filter(function(m) {
+    return (m.category || '').indexOf(catName) !== -1;
+  });
+  renderMemoList(filtered);
+}
+
 // ===== 초기화 =====
 document.addEventListener('DOMContentLoaded', function() {
   initTagInput();
@@ -1929,25 +1934,24 @@ document.addEventListener('DOMContentLoaded', function() {
       s.onclick = function(){ openModal('modal-cat'); };
     }
   });
+  var searchInput = document.querySelector('.search-wrap input');
+  if (searchInput) {
+    searchInput.value = '';
+    searchInput.addEventListener('input', function() {
+      var q = this.value.trim().toLowerCase();
+      if (!q) { applyFilters(); return; }
+      var filtered = allMemos.filter(function(m) {
+        return (m.title || '').toLowerCase().indexOf(q) !== -1 ||
+               (m.content || '').toLowerCase().indexOf(q) !== -1 ||
+               (m.tags || []).some(function(t){ return t.toLowerCase().indexOf(q) !== -1; });
+      });
+      renderMemoList(filtered);
+    });
+  }
+
   loadMemos();
 });
 
-document.querySelector('.filter-bar').addEventListener('click', function(e) {
-  var chip = e.target.closest('.chip');
-  if (!chip) return;
-  var filterVal = chip.dataset.filter;
-  var filterType = chip.dataset.type;
-  if (!filterVal) return;
-
-  if (chip.classList.contains('active')) {
-    // active chip → 필터 제거
-    chip.classList.remove('active');
-    // 여기서 activeFilters 등 상태 변수에서도 제거 후 loadMemos() 재호출
-  } else {
-    // inactive chip → 필터 추가
-    chip.classList.add('active');
-  }
-});
 
 </script>
 
