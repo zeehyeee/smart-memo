@@ -83,7 +83,7 @@
   .nav-section {
     padding: 14px 12px 4px 72px;
     font-size: 10px;
-    color: var(--text3);
+    color: #C0B5A8;
     letter-spacing: 0.08em;
     text-transform: uppercase;
     font-weight: 500;
@@ -106,17 +106,12 @@
     background: var(--purple-light);
     font-weight: 500;
   }
-  .nav-dot {
-    position: absolute;
-    left: 20px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--border2);
-    flex-shrink: 0;
+  .nav-dot { display: none; }
+  /* 상단 고정 3개 nav-item */
+  #nav-all, #nav-starred,
+  .nav > .nav-item:not(.cat-parent):not(.cat-sub):not(.cat-leaf) {
+    font-weight: 500;
   }
-  .nav-item.active .nav-dot { background: var(--purple); }
   .nav-item .badge {
     margin-left: auto;
     background: var(--red-light);
@@ -151,12 +146,13 @@
     transition: max-height 0.2s ease;
   }
   .cat-children.collapsed { max-height: 0; }
+  .nav-item.cat-parent { padding-left: 86px; }
   .cat-sub {
-    padding-left: 80px;
+    padding-left: 96px;
     font-size: 12px;
   }
   .cat-leaf {
-    padding-left: 90px;
+    padding-left: 106px;
     font-size: 12px;
     color: var(--text2);
   }
@@ -356,7 +352,7 @@
     overflow: hidden;
   }
   .card-preview mark { background: #FEF9C3; color: inherit; border-radius: 2px; padding: 0 1px; }
-  .card-footer { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .card-footer { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
   .pill {
     height: 18px;
     padding: 0 7px;
@@ -365,6 +361,13 @@
     font-weight: 500;
     display: inline-flex;
     align-items: center;
+  }
+  .pill-cat-part {
+    height: auto;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 500;
   }
   .pill-work { background: var(--blue-light); color: var(--blue); }
   .pill-idea { background: var(--purple-light); color: var(--purple); }
@@ -425,8 +428,8 @@
     transition: all 0.1s;
   }
   .det-btn:hover { background: var(--surface2); color: var(--text1); }
-  .det-btn.primary { background: var(--purple); color: #fff; border-color: var(--purple); }
-  .det-btn.primary:hover { opacity: 0.88; }
+  .det-btn.primary { background: #F5E8E3; color: var(--purple); border-color: var(--purple-mid); }
+  .det-btn.primary:hover { background: #EDD5CB; }
 
   /* AI 분석 카드 */
   .ai-card {
@@ -538,8 +541,8 @@
   }
   .cat-children { overflow: hidden; max-height: 300px; transition: max-height 0.2s ease; }
   .cat-children.collapsed { max-height: 0; }
-  .cat-sub { padding-left: 80px !important; font-size: 12px; cursor: pointer; }
-  .cat-leaf { padding-left: 90px !important; font-size: 12px; color: var(--text2); }
+  .cat-sub { padding-left: 96px !important; font-size: 12px; cursor: pointer; }
+  .cat-leaf { padding-left: 106px !important; font-size: 12px; color: var(--text2); }
   .cat-leaf.active { color: var(--purple); background: var(--purple-light); font-weight: 500; }
   .leaf-line { width: 10px; height: 1px; background: var(--border2); flex-shrink: 0; margin-right: 2px; }
 </style>
@@ -1512,7 +1515,7 @@ function renderMemoList(memos) {
       + '<button class="star-btn' + starCls + '" onclick="toggleStar(event,\'' + memo.id + '\')" title="중요 메모">' + starIcon + '</button>'
       + '<div class="card-time">' + formatDate(memo.created_at) + '</div></div>'
       + '<div class="card-preview">' + escHtml(preview) + (src.length > 80 ? '…' : '') + '</div>'
-      + '<div class="card-footer"><span class="pill ' + pillClass + '">' + escHtml(cat) + '</span>' + tags + conf + '</div>'
+      + '<div class="card-footer">' + cat.split(' > ').map(function(p){ return '<span class="pill ' + pillClass + ' pill-cat-part">' + escHtml(p) + '</span>'; }).join('') + tags + conf + '</div>'
       + '</div>';
   });
   scroll.innerHTML = html;
