@@ -7,5 +7,7 @@ directory = "."
 binding = "ASSETS"
 
 [vars]
-# 실제 API 키는 .dev.vars(로컬) 또는 wrangler secret put GEMINI_API_KEY(프로덕션)로 설정
-# 여기에 실제 키를 절대 넣지 마세요
+# GEMINI_API_KEY는 여기에 직접 넣지 마세요.
+# 로컬 개발: .dev.vars 파일에 GEMINI_API_KEY=실제키 입력
+# 프로덕션: wrangler secret put GEMINI_API_KEY
+GEMINI_API_KEY = ""
