@@ -7,7 +7,8 @@ directory = "."
 binding = "ASSETS"
 
 [vars]
-# GEMINI_API_KEY는 여기에 직접 넣지 마세요.
-# 로컬 개발: .dev.vars 파일에 GEMINI_API_KEY=실제키 입력
-# 프로덕션: wrangler secret put GEMINI_API_KEY
-GEMINI_API_KEY = ""
+# GEMINI_API_KEY는 [vars]에 선언하지 마세요 — Dashboard Secret이 덮어써집니다.
+# 설정 방법:
+#   로컬:      .dev.vars 파일에 GEMINI_API_KEY=실제키 입력
+#   프로덕션:  Cloudflare Dashboard > Workers > Settings > Variables and Secrets
+#              또는: wrangler secret put GEMINI_API_KEY

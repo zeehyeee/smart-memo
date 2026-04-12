@@ -1241,22 +1241,8 @@ function toggleCat(id) {
 
 <script>
 // ===== API 설정 =====
-// Worker를 통해 서빙되면 __GEMINI_KEY__가 실제 키로 치환됨
-// 직접 열리는 경우 localStorage 또는 사용자 입력으로 폴백
-var GEMINI_API_KEY = (function() {
-  var injected = "__GEMINI_KEY__";
-  if (injected && injected !== "__GEMINI_KEY__") return injected;
-  var stored = localStorage.getItem('gmk');
-  if (stored) return stored;
-  var input = prompt(
-    'Gemini API 키를 입력하세요.\n(입력값은 이 브라우저에만 저장됩니다)'
-  );
-  if (input && input.trim()) {
-    localStorage.setItem('gmk', input.trim());
-    return input.trim();
-  }
-  return '';
-})();
+// Cloudflare Worker가 __GEMINI_KEY__ 플레이스홀더를 실제 키로 치환해서 서빙함
+var GEMINI_API_KEY = "__GEMINI_KEY__";
 var SUPABASE_URL = "https://gaksbjhjujaeotgttzyh.supabase.co";
 var SUPABASE_KEY = "sb_publishable_hdGdA4ugDKwDHRhPG6krTg_GklsJUm7";
 
@@ -2269,6 +2255,11 @@ function filterBySidebarCat(el, catName) {
 
 // ===== 초기화 =====
 document.addEventListener('DOMContentLoaded', function() {
+  // Worker 미경유(플레이스홀더 미치환) 감지
+  if (GEMINI_API_KEY === '__GEMINI_KEY__') {
+    showToast('⚠ Cloudflare Worker를 통해 접속해야 AI 기능이 동작합니다');
+    console.warn('GEMINI_API_KEY가 치환되지 않았습니다. Cloudflare Worker URL로 접속하세요.');
+  }
   initTagInput();
   // 수정 모달 태그 입력
   document.getElementById('edit-tag-input').addEventListener('keydown', function(e) {
